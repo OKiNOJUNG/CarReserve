@@ -590,7 +590,7 @@
         };
 
         // --- CLOUD SYNC & STATE ---
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwxZxKUcs1albLV3oAvUID8-m7zT5m_QBM5JBNS64nVpsnvfr_zu1XxW2Xk3Wi0irzbpw/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxaj0DZ8Qpw2I3oZNYYzMcV3icSjHYkHBmzw8bWzM8qhVCYO4X_BIU2fWI15YfMJRAogw/exec';
 
 let dbState = {
     bookings: [],
@@ -606,11 +606,11 @@ async function loadDataFromCloud() {
         const response = await fetch(WEB_APP_URL);
         const data = await response.json();
         
-        if (data.bookings && data.bookings.length > 0) dbState.bookings = data.bookings;
-        if (data.users && data.users.length > 0) dbState.users = data.users;
-        if (Object.keys(data.stats || {}).length > 0) dbState.stats = data.stats;
-        if (data.vehicles && data.vehicles.length > 0) dbState.vehicles = data.vehicles;
-        if (data.locations && data.locations.length > 0) dbState.locations = data.locations;
+        if (data.bookings) dbState.bookings = data.bookings;
+        if (data.users) dbState.users = data.users;
+        if (data.stats) dbState.stats = data.stats;
+        if (data.vehicles) dbState.vehicles = data.vehicles;
+        if (data.locations) dbState.locations = data.locations;
         
         Swal.close();
     } catch (err) {
@@ -618,7 +618,6 @@ async function loadDataFromCloud() {
         Swal.fire('Warning', 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้ ระบบกำลังทำงานในโหมด Offline (Local)', 'warning');
     }
 }
-
 function syncToCloud(tableName, payloadData) {
     fetch(WEB_APP_URL, {
         method: 'POST',
@@ -627,28 +626,43 @@ function syncToCloud(tableName, payloadData) {
     }).catch(err => console.error('Sync error:', err));
 }
 
-// --- GETTERS & SETTERS (Cloud Mode) ---
-function getVehicleList() { return dbState.vehicles; }
-function saveVehicleList(list) { dbState.vehicles = list; syncToCloud('vehicles', list); }
+// --- GETTERS & SETTERS (Cloud Mode - Complete Defensive Layer) ---
+function getVehicleList() { 
+    // หากคลาวด์ส่งค่ากลับมาว่างเปล่า ให้ดึงค่าเริ่มต้นพยุงระบบทันที ป้องกันหน้าจอซ้ายว่าง
+    return (dbState.vehicles && dbState.vehicles.length > 0) ? dbState.vehicles : defaultVehicles; 
+}
 
-function getLocationList() { return dbState.locations; }
-function saveLocationList(list) { dbState.locations = list; syncToCloud('locations', list); }
+function getLocationList() { 
+    return (dbState.locations && dbState.locations.length > 0) ? dbState.locations : defaultLocations; 
+}
 
 function getVehicleStats() { 
     let stats = dbState.stats || {};
-    // สร้างค่าพื้นฐานให้รถทุกคันเสมอ เพื่อป้องกัน Error Cannot read properties
-    dbState.vehicles.forEach(v => {
-        if (!stats[v]) stats[v] = { currentMile: 0, lastBatteryDate: formatDateLocal(new Date()), lastServiceMile: 0, tires: { fr:0,fl:0,rr:0,rl:0 } };
-        if (!stats[v].tires) stats[v].tires = { fr:0,fl:0,rr:0,rl:0 };
+    let vehicles = getVehicleList();
+    
+    vehicles.forEach(v => {
+        // บังคับเตรียมโครงสร้าง Object หลักหากไม่มีข้อมูลในชีต
+        if (!stats[v] || typeof stats[v] !== 'object') {
+            stats[v] = { currentMile: 0, lastBatteryDate: formatDateLocal(new Date()), lastServiceMile: 0, tires: { fr:0,fl:0,rr:0,rl:0 } };
+        }
+        // ตรวจสอบโครงสร้าง ยาง (tires) แบบละเอียดลึกเป็นพิเศษ ป้องกัน Error "Cannot read properties of undefined (reading 'fr')"
+        if (!stats[v].tires || typeof stats[v].tires !== 'object') {
+            stats[v].tires = { fr:0,fl:0,rr:0,rl:0 };
+        }
+        // ตรวจสอบเช็คคุณสมบัติย่อยใน tires เผื่อมีบางค่าหลุดหายไปจากการเขียนชีต
+        ['fr', 'fl', 'rr', 'rl'].forEach(pos => {
+            if (stats[v].tires[pos] === undefined || stats[v].tires[pos] === null) {
+                stats[v].tires[pos] = 0;
+            }
+        });
     });
     return stats; 
 }
+
+function saveVehicleList(list) { dbState.vehicles = list; syncToCloud('vehicles', list); }
+function saveLocationList(list) { dbState.locations = list; syncToCloud('locations', list); }
 function saveVehicleStats(data) { dbState.stats = data; syncToCloud('stats', data); }
-
-function getUsers() { return dbState.users; }
 function saveUsers(users) { dbState.users = users; syncToCloud('users', users); }
-
-function getBookings() { return dbState.bookings; }
 function saveBookings(data) { dbState.bookings = data; syncToCloud('bookings', data); }
         function hardReset() { if(confirm("ล้างค่าทั้งหมด?")) { localStorage.clear(); location.reload(); } }
 
