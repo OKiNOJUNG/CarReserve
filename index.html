@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ระบบบริหารจัดการยานพาหนะ - Liquid Glass Edition</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Sarabun', 'sans-serif'],
+                    },
+                    colors: {
+                        glass: {
+                            100: 'rgba(255, 255, 255, 0.1)',
+                            200: 'rgba(255, 255, 255, 0.2)',
+                            300: 'rgba(255, 255, 255, 0.3)',
+                            400: 'rgba(255, 255, 255, 0.4)',
+                            500: 'rgba(255, 255, 255, 0.5)',
+                            800: 'rgba(255, 255, 255, 0.8)',
+                        }
+                    },
+                    animation: {
+                        'blob': 'blob 7s infinite',
+                        'fade-in-up': 'fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                        'pop': 'pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        pop: {
+                            '0%': { transform: 'scale(0.95)' },
+                            '100%': { transform: 'scale(1)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+        
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+            background-color: #e0e5ec;
+            overflow: hidden;
+        }
+
+        /* --- Liquid Glass Essentials --- */
+        .liquid-bg {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            position: relative;
+        }
+
+        .liquid-bg::before, .liquid-bg::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.6;
+            z-index: 0;
+            animation: blob 10s infinite alternate;
+        }
+        .liquid-bg::before { background: #0d9488; width: 400px; height: 400px; top: -100px; left: -100px; }
+        .liquid-bg::after { background: #f97316; width: 350px; height: 350px; bottom: -50px; right: -50px; animation-delay: 5s; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+        }
+
+        .glass-panel-dark {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        /* --- Inputs & Interactive --- */
+        .ios-input {
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 10px 14px;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            backdrop-filter: blur(5px);
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+        }
+        .ios-input:focus {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: #0d9488;
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
+            transform: scale(1.01);
+        }
+
+        .ios-btn {
+            border: none;
+            border-radius: 14px;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+            font-weight: 600;
+        }
+        .ios-btn:hover { transform: translateY(-2px); filter: brightness(1.05); shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .ios-btn:active { transform: scale(0.95) translateY(0); }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #0d9488 0%, #115e59 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(13, 148, 136, 0.3);
+        }
+        
+        /* --- Scrollbar --- */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+
+        /* --- Specific Components --- */
+        .status-badge {
+            padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: 600;
+            backdrop-filter: blur(4px); display: inline-flex; align-items: center; gap: 4px;
+        }
+        .status-ok { background: rgba(220, 252, 231, 0.6); color: #166534; border: 1px solid rgba(22, 101, 52, 0.1); }
+        .status-warn { background: rgba(254, 249, 195, 0.6); color: #854d0e; border: 1px solid rgba(133, 77, 14, 0.1); }
+        .status-danger /* --- เพิ่มต่อจาก .status-danger ในส่วน <style> --- */
+.status-pending { background: rgba(241, 245, 249, 0.8); color: #475569; border: 1px solid rgba(71, 85, 105, 0.2); }
+.status-active { background: rgba(219, 234, 254, 0.8); color: #1e40af; border: 1px solid rgba(30, 64, 175, 0.2); }
+
+        /* Vehicle Cards & Colors (Glassy) */
+        .v-badge { border-radius: 8px; font-weight: 700; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.4); }
+        .car-sky { background: linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%); color: #0c4a6e; }
+        .car-orange { background: linear-gradient(135deg, #fdba74 0%, #fb923c 100%); color: #7c2d12; }
+        .car-green { background: linear-gradient(135deg, #86efac 0%, #4ade80 100%); color: #14532d; }
+        .car-pink { background: linear-gradient(135deg, #f9a8d4 0%, #f472b6 100%); color: #831843; }
+        .car-gray { background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%); color: #0f172a; }
+        .car-yellow { background: linear-gradient(135deg, #fde047 0%, #facc15 100%); color: #713f12; }
+        .car-default { background: #cbd5e1; color: #000; }
+
+        /* Animations */
+        .sidebar-transition { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        
+        .av-grid-cell { 
+            width: 100%; height: 34px; 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 10px; border-right: 1px solid rgba(0,0,0,0.03); border-bottom: 1px solid rgba(0,0,0,0.03); 
+            transition: all 0.2s; 
+        }
+        .av-grid-cell:hover { transform: scale(1.15); z-index: 10; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .av-free { background-color: rgba(220, 252, 231, 0.4); color: #166534; } 
+        .av-busy { background-color: rgba(254, 226, 226, 0.6); color: #991b1b; cursor: pointer; } 
+        .av-pending { background-color: rgba(229, 231, 235, 0.6); color: #374151; cursor: pointer; } 
+
+        .mobile-full-modal {
+            transition: all 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        /* Responsive Fixes */
+        @media (max-width: 768px) {
+            .mobile-full-modal {
+                width: 100% !important; height: 100% !important; max-width: none !important; border-radius: 0 !important; margin: 0 !important;
+            }
+            .mobile-bottom-sheet {
+                border-radius: 24px 24px 0 0 !important;
+                height: 85vh !important;
+            }
+        }
+    </style>
+</head>
+<body class="liquid-bg h-screen text-slate-700">
+
+    <div id="loginScreen" class="fixed inset-0 z-[200] flex items-center justify-center p-6 backdrop-blur-md bg-white/30">
+        <div class="glass-panel p-8 rounded-3xl shadow-2xl w-full max-w-sm animate-fade-in-up relative border border-white/60">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-gradient-to-tr from-teal-500 to-emerald-400 text-white rounded-2xl flex items-center justify-center text-3xl font-bold mx-auto mb-4 shadow-lg shadow-teal-500/30">TB</div>
+                <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Vehicle Management</h2>
+                <p class="text-slate-500 text-sm mt-1">Thai Beverage PCL.</p>
+            </div>
+            <form id="loginForm" class="space-y-4">
+                <div class="space-y-1">
+                    <input type="email" id="loginEmail" class="ios-input w-full" placeholder="Email Address" required>
+                </div>
+                <div class="space-y-1">
+                    <input type="password" id="loginPass" class="ios-input w-full" placeholder="Password" required>
+                </div>
+                <button type="submit" class="w-full btn-primary py-3.5 rounded-xl shadow-lg font-medium text-lg mt-2 ios-btn">เข้าสู่ระบบ</button>
+            </form>
+            <button onclick="hardReset()" class="hidden absolute -bottom-12 left-0 right-0 text-slate-500 text-xs hover:text-slate-800 transition"><i class="fas fa-sync-alt mr-1"></i> System Reset</button>
+        </div>
+    </div>
+
+    <div id="appContainer" class="flex h-full hidden relative z-10">
+        <div id="sidebarOverlay" onclick="closeSidebar()" class="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-30 hidden md:hidden transition-opacity"></div>
+
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-[85vw] max-w-xs md:w-72 glass-panel border-r-0 md:border-r border-white/50 shadow-2xl md:shadow-none transform -translate-x-full md:translate-x-0 md:static sidebar-transition flex flex-col h-full md:bg-white/40">
+            <div class="p-6 flex items-center gap-4 shrink-0 border-b border-white/30">
+                <div class="w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-700 rounded-2xl shadow-lg shadow-teal-500/20 flex items-center justify-center text-white text-xl"><i class="fas fa-car-side"></i></div>
+                <div class="flex-1 min-w-0">
+                    <h1 class="text-base font-bold text-slate-800 truncate">Fleet System</h1>
+                    <p class="text-xs text-slate-500 truncate font-medium" id="userDisplay">Guest</p>
+                </div>
+                <button onclick="closeSidebar()" class="md:hidden w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="px-4 py-6 space-y-3 shrink-0">
+                <button onclick="openBookingModal(); closeSidebar()" class="ios-btn w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white py-3 px-4 shadow-lg shadow-teal-500/30 flex items-center gap-3 text-sm"><i class="fas fa-plus bg-white/20 p-1.5 rounded-full text-xs"></i> จองรถใหม่</button>
+                <button onclick="openAvailabilityModal(); closeSidebar()" class="ios-btn w-full bg-white/60 hover:bg-white text-slate-700 py-3 px-4 shadow-sm border border-white/50 flex items-center gap-3 text-sm transition"><i class="fas fa-calendar-alt text-orange-500 text-lg"></i> เช็คคิวรถว่าง</button>
+                <button id="fleetBtn" onclick="openFleetModal(); closeSidebar()" class="hidden ios-btn w-full bg-white/60 hover:bg-white text-slate-700 py-3 px-4 shadow-sm border border-white/50 flex items-center gap-3 text-sm transition"><i class="fas fa-chart-pie text-indigo-500 text-lg"></i> Fleet Dashboard</button>
+                <button id="adminSettingsBtn" onclick="openAdminPanel(); closeSidebar()" class="hidden ios-btn w-full bg-slate-800 text-white py-3 px-4 shadow-lg flex items-center gap-3 text-sm relative overflow-visible">
+                    <i class="fas fa-cogs text-slate-300"></i> Admin Control
+                    <span id="pendingBadge" class="hidden absolute top-0 right-0 -mt-2 -mr-2 w-6 h-6 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center border-2 border-white shadow-sm animate-bounce">0</span>
+                </button>
+            </div>
+
+            <div class="px-6 mt-2 flex-1 overflow-y-auto">
+                <div class="flex justify-between items-end mb-3 sticky top-0 bg-transparent py-2 z-10">
+                    <h3 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">แสดงผลรถ (Filter)</h3>
+                    <span class="text-[10px] text-teal-600 font-bold cursor-pointer hover:bg-teal-50 px-2 py-1 rounded transition" onclick="resetVehicleFilter()">แสดงทั้งหมด</span>
+                </div>
+                <div id="vehicleFilterList" class="space-y-2 pb-4"></div>
+            </div>
+
+            <div class="p-4 mx-4 mb-6 rounded-2xl bg-white/40 border border-white/40 flex flex-col gap-2 shrink-0 backdrop-blur-sm">
+                <button onclick="backupData()" class="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-2 p-2 rounded hover:bg-white/50 transition"><i class="fas fa-cloud-download-alt"></i> Backup Data</button>
+                <button onclick="triggerImport()" class="text-xs font-semibold text-orange-600 hover:text-orange-800 flex items-center gap-2 p-2 rounded hover:bg-white/50 transition"><i class="fas fa-cloud-upload-alt"></i> Import Data</button>
+                <input type="file" id="importFile" class="hidden" accept=".json" onchange="handleImport(this)">
+                <div class="h-px bg-slate-200 my-1"></div>
+                <button onclick="logout()" class="text-xs font-bold text-red-500 hover:text-red-700 flex items-center gap-2 p-2 rounded hover:bg-red-50 transition w-full"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full relative overflow-hidden w-full bg-white/30 backdrop-blur-xl md:rounded-l-3xl shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-white/50">
+            <header class="h-16 flex items-center justify-between px-4 md:px-8 shrink-0 z-20 bg-gradient-to-r from-teal-500 to-teal-600 shadow-lg border-b border-teal-400/30 text-white transition-all duration-500">
+    <div class="flex items-center gap-3 w-full md:w-auto">
+        <button onclick="openSidebar()" class="md:hidden text-white/90 p-2 -ml-2 rounded-xl active:bg-white/20 text-lg hover:text-white"><i class="fas fa-bars"></i></button>
+        
+        <div class="flex items-center bg-black/10 rounded-xl p-1 border border-white/10 backdrop-blur-sm">
+            <button onclick="changePeriod(-1)" class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/20 shadow-sm transition text-white"><i class="fas fa-chevron-left text-xs"></i></button>
+            <span class="text-sm font-bold w-32 sm:w-40 text-center truncate select-none text-white drop-shadow-md" id="currentDateDisplay">Loading...</span>
+            <button onclick="changePeriod(1)" class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/20 shadow-sm transition text-white"><i class="fas fa-chevron-right text-xs"></i></button>
+        </div>
+        
+        <button onclick="goToToday()" class="hidden md:flex bg-white/20 text-white px-3 py-1.5 rounded-lg text-xs font-bold items-center gap-1.5 border border-white/30 hover:bg-white/30 transition shadow-sm"><i class="fas fa-calendar-day"></i> <span>วันนี้</span></button>
+    </div>
+    
+    <div class="flex bg-black/10 rounded-xl p-1 gap-1 border border-white/10 backdrop-blur-sm">
+        <button onclick="setView('month')" id="btnMonth" class="view-btn px-4 py-1.5 text-xs rounded-lg font-bold transition flex items-center gap-2"><i class="fas fa-calendar md:hidden"></i><span class="hidden md:inline">Month</span></button>
+        <button onclick="setView('table')" id="btnTable" class="view-btn px-4 py-1.5 text-xs rounded-lg font-bold transition flex items-center gap-2"><i class="fas fa-list"></i> <span class="hidden md:inline">List</span></button>
+    </div>
+</header>
+            
+            <div class="flex-1 overflow-hidden relative flex flex-col" id="calendarContainer"></div>
+        </main>
+    </div>
+
+    <div id="bookingModal" class="fixed inset-0 bg-slate-900/40 hidden flex items-end md:items-center justify-center p-0 md:p-4 backdrop-blur-sm z-[100]">
+        <div class="glass-panel w-full h-[90vh] md:h-auto md:max-w-lg flex flex-col animate-fade-in-up mobile-bottom-sheet md:rounded-3xl border border-white/60 shadow-2xl">
+            <div class="px-6 py-4 flex justify-between items-center shrink-0 border-b border-white/30">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center"><i class="fas fa-calendar-plus"></i></div>
+                    <h3 class="font-bold text-xl text-slate-800" id="bookingModalTitle">บันทึกการจอง</h3>
+                </div>
+                <button onclick="closeModalWithHistory('bookingModal')" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="bookingForm" class="flex-1 overflow-y-auto p-6 space-y-5 pb-safe-area scrollbar-thin">
+                <input type="hidden" id="bookingId">
+                
+                <div class="bg-teal-50/50 p-4 rounded-2xl border border-teal-100/50">
+                    <div class="text-[10px] font-bold text-teal-700 mb-2 uppercase tracking-wide flex items-center gap-1"><i class="fas fa-clock"></i> ระยะเวลาการใช้รถ</div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="text-xs font-bold text-slate-500 block mb-1 ml-1">วันเริ่ม</label><input type="date" id="startDate" required class="ios-input w-full text-sm"></div>
+                        <div><label class="text-xs font-bold text-slate-500 block mb-1 ml-1">วันจบ</label><input type="date" id="endDate" required class="ios-input w-full text-sm"></div>
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <div class="flex justify-between items-baseline mb-1 ml-1">
+                        <label class="text-xs font-bold text-slate-500">เลือกรถ</label>
+                        <span id="availabilityMsg" class="text-[10px] text-orange-500 hidden font-medium"><i class="fas fa-filter"></i> คัดกรองรถว่างแล้ว</span>
+                    </div>
+                    <div class="relative">
+                        <select id="licensePlate" required class="ios-input w-full text-sm appearance-none" disabled><option value="">-- กรุณาระบุวันที่ก่อน --</option></select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><i class="fas fa-chevron-down text-xs"></i></div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1 ml-1">ผู้จอง</label>
+                        <input list="requesterList" id="requester" required class="ios-input w-full text-sm" placeholder="ระบุชื่อผู้จอง...">
+                        <datalist id="requesterList"></datalist>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1 ml-1">สถานที่ปฏิบัติงาน</label>
+                        <div class="flex flex-col gap-2">
+                            <div class="relative">
+                                <select id="location" required class="ios-input w-full text-sm appearance-none" onchange="toggleCustomLoc(this)"></select>
+                                <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><i class="fas fa-chevron-down text-xs"></i></div>
+                            </div>
+                            <input type="text" id="customLocation" class="hidden ios-input w-full text-sm" placeholder="ระบุสถานที่เอง...">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 block mb-1 ml-1">รายละเอียด / หมายเหตุ</label>
+                        <textarea id="note" class="ios-input w-full text-sm resize-none" rows="2" placeholder="ระบุรายละเอียดเพิ่มเติม..."></textarea>
+                    </div>
+                </div>
+
+                <div id="adminTripZone" class="hidden pt-4 border-t border-dashed border-slate-300">
+                    <h4 class="text-xs font-bold text-teal-700 uppercase mb-3 flex items-center gap-2 bg-teal-50 w-fit px-2 py-1 rounded"><i class="fas fa-user-shield"></i> Admin Log</h4>
+                    <div class="grid grid-cols-3 gap-3 mb-3">
+                        <div><label class="text-[10px] font-bold text-slate-400 block ml-1">ไมล์ก่อน</label><input type="number" id="startMile" class="ios-input w-full text-right bg-slate-50" placeholder="0"></div>
+                        <div><label class="text-[10px] font-bold text-slate-400 block ml-1">ไมล์หลัง</label><input type="number" id="endMile" class="ios-input w-full text-right bg-slate-50" placeholder="0" onchange="calcDistance()"></div>
+                        <div><label class="text-[10px] font-bold text-slate-400 block ml-1">ระยะรวม</label><input type="number" id="totalDist" class="ios-input w-full text-right font-bold text-teal-600 bg-teal-50/50" readonly></div>
+                    </div>
+                    <div><label class="text-[10px] font-bold text-slate-400 block ml-1">Fleet Card / Ref</label><input type="number" step="0.01" id="slipRef" class="ios-input w-full" placeholder="0.00"></div>
+                </div>
+            </form>
+            <div class="p-6 pt-2 flex gap-3 pb-safe-area shrink-0 border-t border-white/30 bg-white/30 backdrop-blur-md rounded-b-3xl">
+                <button type="button" onclick="closeModalWithHistory('bookingModal')" class="flex-1 py-3 text-sm text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl font-bold transition ios-btn">ยกเลิก</button>
+                <button onclick="document.getElementById('bookingForm').requestSubmit()" class="flex-[2] py-3 text-sm bg-gradient-to-r from-teal-600 to-emerald-500 text-white rounded-xl shadow-lg hover:shadow-xl font-bold transition ios-btn">บันทึกข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="availabilityModal" class="fixed inset-0 bg-slate-900/50 hidden flex items-end md:items-center justify-center p-0 md:p-6 backdrop-blur-md z-[80]">
+        <div class="glass-panel w-full h-full md:h-[90vh] md:max-w-6xl flex flex-col overflow-hidden mobile-full-modal md:rounded-3xl border border-white/50 shadow-2xl">
+            <div class="bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-lg">
+                <div class="flex items-center gap-3">
+                    <button onclick="closeModalWithHistory('availabilityModal')" class="md:hidden -ml-2 p-2"><i class="fas fa-arrow-left"></i></button>
+                    <h3 class="text-xl font-bold truncate flex items-center gap-2"><i class="fas fa-calendar-check bg-white/20 p-1.5 rounded-lg"></i> สถานะรถว่าง</h3>
+                </div>
+                <button onclick="closeModalWithHistory('availabilityModal')" class="hidden md:block w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="p-4 bg-white/50 backdrop-blur border-b border-white/50 flex flex-wrap justify-between items-center gap-3 shrink-0">
+                <div class="flex items-center gap-2 w-full md:w-auto bg-white rounded-xl p-1 pr-3 shadow-sm border border-slate-200">
+                    <span class="bg-orange-100 text-orange-700 px-2 py-1.5 rounded-lg text-xs font-bold">เลือกเดือน</span>
+                    <input type="month" id="avDate" class="outline-none text-sm font-bold text-slate-700 bg-transparent" onchange="renderAvailabilityGrid()">
+                </div>
+                <div class="flex gap-3 text-xs font-bold ml-auto md:ml-0 bg-white/60 p-2 rounded-xl border border-white/50">
+                    <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-green-200 border border-green-400 rounded-full"></div> ว่าง</div>
+                    <div class="flex items-center gap-1.5"><div class="w-3 h-3 bg-red-200 border border-red-400 rounded-full"></div> จองแล้ว</div>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-auto p-4 md:p-6 bg-slate-50/50" id="avGridContainer"></div>
+        </div>
+    </div>
+
+    <div id="fleetModal" class="fixed inset-0 bg-slate-900/60 hidden z-[80] flex items-end md:items-center justify-center p-0 md:p-4 backdrop-blur-md">
+        <div class="glass-panel w-full h-full md:h-[95vh] md:max-w-6xl flex flex-col overflow-hidden mobile-full-modal md:rounded-3xl shadow-2xl">
+            <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-lg">
+                <h3 class="text-xl font-bold flex items-center gap-2"><i class="fas fa-chart-pie bg-white/20 p-1.5 rounded-lg"></i> Fleet Dashboard</h3>
+                <button onclick="closeModalWithHistory('fleetModal')" class="hover:text-indigo-200 transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-4 bg-white/60 border-b border-white/50 flex flex-col md:flex-row justify-center gap-3 items-center backdrop-blur">
+                <div class="flex w-full md:w-auto gap-2 bg-white rounded-xl p-1 shadow-sm border">
+                    <input type="month" id="fleetStart" class="rounded-lg px-2 py-1.5 text-sm w-full outline-none">
+                    <span class="text-slate-400 self-center">to</span>
+                    <input type="month" id="fleetEnd" class="rounded-lg px-2 py-1.5 text-sm w-full outline-none">
+                </div>
+                <button onclick="renderFleetCharts()" class="w-full md:w-auto px-5 py-2 text-sm bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 rounded-xl hover:bg-indigo-700 font-bold ios-btn">Apply Filter</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50/30 pb-safe-area">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6">
+                    <div class="glass-panel p-5 rounded-2xl flex flex-col h-[350px]"><h4 class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-wider">ระยะทางสะสม (กม.)</h4><div class="flex-1 relative"><canvas id="distChart"></canvas></div></div>
+                    <div class="glass-panel p-5 rounded-2xl flex flex-col h-[350px]"><h4 class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-wider">ค่าใช้จ่าย Fleet Card (บาท)</h4><div class="flex-1 relative"><canvas id="costChart"></canvas></div></div>
+                    <div class="glass-panel p-5 rounded-2xl flex flex-col h-[350px]"><h4 class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-wider">สัดส่วนผู้จอง (จำนวนครั้ง)</h4><div class="flex-1 relative"><canvas id="userChart"></canvas></div></div>
+                    <div class="glass-panel p-5 rounded-2xl flex flex-col h-[350px]"><h4 class="text-xs font-bold text-slate-500 uppercase mb-4 tracking-wider">สัดส่วนสถานที่ปฏิบัติงาน</h4><div class="flex-1 relative"><canvas id="locChart"></canvas></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="viewModal" class="fixed inset-0 bg-slate-900/40 hidden flex items-center justify-center p-6 backdrop-blur-md z-[90]">
+        <div class="glass-panel rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-pop border border-white/60">
+            <div id="viewHeader" class="px-6 py-4 flex justify-between items-center text-white relative overflow-hidden">
+                <div class="absolute inset-0 bg-black/10"></div>
+                <span class="font-bold text-2xl relative z-10 drop-shadow-md" id="viewLicense">License</span>
+                <button onclick="closeModalWithHistory('viewModal')" class="relative z-10 w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/40 rounded-full text-sm backdrop-blur transition"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="p-6 pb-2">
+                <div class="flex justify-center mb-5 scale-110">
+                     <div id="viewStatusBadge" class="shadow-lg rounded-full"></div>
+                </div>
+
+                <div class="bg-white/50 rounded-2xl p-5 space-y-4 shadow-inner border border-white/50 backdrop-blur-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500"><i class="fas fa-user"></i></div>
+                        <div>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase">ผู้จอง</p>
+                            <p class="font-bold text-slate-800 text-sm" id="viewRequester">-</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500"><i class="fas fa-clock"></i></div>
+                        <div>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase">วันที่</p>
+                            <p class="font-bold text-slate-800 text-sm" id="viewDate">-</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 shrink-0"><i class="fas fa-map-marker-alt"></i></div>
+                        <div>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase">สถานที่</p>
+                            <p class="text-slate-800 text-sm leading-tight font-medium" id="viewLocation">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 bg-yellow-50/80 rounded-2xl p-4 border border-yellow-100">
+                    <span class="text-yellow-600 font-bold text-[10px] block mb-1 uppercase"><i class="fas fa-sticky-note mr-1"></i> หมายเหตุ</span>
+                    <p class="text-slate-700 text-sm" id="viewNote">-</p>
+                </div>
+
+                <div id="viewTripLog" class="hidden mt-4 pt-3 border-t border-dashed border-slate-300">
+                    <div class="flex justify-between items-center bg-teal-50 px-3 py-2 rounded-lg border border-teal-100">
+                        <span class="text-teal-700 font-bold text-xs uppercase"><i class="fas fa-road mr-1"></i> ระยะทางที่ใช้</span>
+                        <span class="text-teal-900 font-mono font-bold text-lg" id="viewDistance">0 km</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="viewActions" class="px-6 py-5 flex justify-between items-center mt-2 border-t border-white/50 bg-white/40 backdrop-blur">
+                <button onclick="deleteCurrentBooking()" class="text-red-500 hover:text-red-600 font-bold flex items-center gap-2 text-sm px-3 py-2 rounded-lg hover:bg-red-50 transition">
+                    <i class="fas fa-trash-alt"></i> ลบรายการ
+                </button>
+                
+                <div class="flex gap-2">
+                    <button id="approveBtn" onclick="approveCurrentBooking()" class="hidden text-green-600 hover:text-green-800 font-bold flex items-center gap-2 text-sm bg-green-100/50 hover:bg-green-100 px-4 py-2 rounded-xl transition border border-green-200">
+                        <i class="fas fa-check-circle"></i> อนุมัติ
+                    </button>
+                    <button onclick="editCurrentBooking()" class="text-teal-600 hover:text-teal-800 font-bold flex items-center gap-2 text-sm bg-white hover:bg-teal-50 px-4 py-2 rounded-xl shadow-sm border border-slate-200 transition">
+                        <i class="fas fa-edit"></i> แก้ไข
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="dayDetailsModal" class="fixed inset-0 bg-slate-900/30 hidden z-[55] flex items-end md:items-center justify-center p-0 md:p-4 backdrop-blur-sm">
+        <div class="glass-panel w-full h-[85vh] md:h-[80vh] max-w-md overflow-hidden animate-fade-in-up flex flex-col mobile-bottom-sheet md:rounded-3xl shadow-2xl border border-white/60">
+            <div class="px-6 py-4 flex justify-between items-center text-slate-800 shrink-0 border-b border-white/40 bg-white/40 backdrop-blur">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500"><i class="fas fa-list-ul text-xs"></i></div>
+                    <div>
+                        <h3 class="font-bold text-lg leading-tight" id="dayDetailsTitle">รายละเอียด</h3>
+                        <p class="text-[10px] text-slate-500 font-medium">จัดการรายการประจำวัน</p>
+                    </div>
+                </div>
+                <button onclick="closeModalWithHistory('dayDetailsModal')" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 bg-slate-50/50 flex-1 overflow-y-auto pb-safe-area" id="dayDetailsList"></div>
+        </div>
+    </div>
+
+    <div id="adminPanelModal" class="fixed inset-0 bg-slate-900/60 hidden z-[70] flex items-end md:items-center justify-center p-0 md:p-4 backdrop-blur-md">
+        <div class="glass-panel w-full h-full md:h-[85vh] md:max-w-4xl overflow-hidden flex flex-col mobile-full-modal md:rounded-3xl shadow-2xl">
+            <div class="bg-slate-800 px-6 py-4 flex justify-between items-center text-white shrink-0 shadow-lg">
+                <h3 class="text-xl font-bold flex items-center gap-3"><i class="fas fa-cogs"></i> Admin Control</h3>
+                <button onclick="closeModalWithHistory('adminPanelModal')" class="hover:text-slate-300 transition"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="flex border-b border-slate-200 bg-white/80 overflow-x-auto shrink-0 no-scrollbar backdrop-blur">
+                <button onclick="switchAdminTab('users')" id="tabUserBtn" class="flex-1 py-4 px-6 text-sm font-bold text-teal-700 border-b-2 border-teal-600 whitespace-nowrap bg-teal-50/50 transition">ผู้ใช้งาน</button>
+                <button onclick="switchAdminTab('locations')" id="tabLocBtn" class="flex-1 py-4 px-6 text-sm font-bold text-slate-500 hover:text-slate-700 whitespace-nowrap transition">สถานที่</button>
+                <button onclick="switchAdminTab('vehicles')" id="tabVehicleBtn" class="flex-1 py-4 px-6 text-sm font-bold text-slate-500 hover:text-slate-700 whitespace-nowrap transition">รถยนต์ & Maintenance</button>
+            </div>
+            <div class="p-4 md:p-8 flex-1 overflow-y-auto bg-slate-100/50 pb-safe-area">
+                <div id="tabUsers" class="space-y-6">
+                    <div class="glass-panel p-6 rounded-2xl">
+                        <h4 class="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2"><i class="fas fa-user-plus text-teal-600"></i> <span id="userFormTitle">เพิ่มผู้ใช้งานใหม่</span></h4>
+                        <form id="addUserForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <input type="hidden" id="editUserId">
+                            <input type="email" id="newEmail" placeholder="Email" required class="ios-input text-sm">
+                            <input type="text" id="newName" placeholder="ชื่อ-สกุล" required class="ios-input text-sm">
+                            <input type="password" id="newPass" placeholder="รหัสผ่าน" class="ios-input text-sm">
+                            <div class="flex gap-2 mt-2 md:mt-0">
+                                <select id="newRole" class="ios-input text-sm flex-1"><option value="user">User</option><option value="admin">Admin</option></select>
+                                <button type="submit" class="bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 font-bold px-4 py-2 shadow-md transition ios-btn" id="saveUserBtn">บันทึก</button>
+                                <button type="button" onclick="resetUserForm()" class="bg-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-300 font-bold px-3 py-2 hidden transition" id="cancelUserBtn">ยกเลิก</button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="glass-panel rounded-2xl overflow-hidden"><table class="w-full text-sm text-left"><thead class="bg-slate-50/80 text-slate-500 uppercase text-[10px] font-bold tracking-wider"><tr><th class="p-4">ชื่อ</th><th class="p-4">Email</th><th class="p-4">Role</th><th class="p-4 text-right">Action</th></tr></thead><tbody id="userTableBody" class="divide-y divide-slate-100 bg-white/40"></tbody></table></div>
+                </div>
+                <div id="tabLocations" class="hidden space-y-6">
+                    <div class="glass-panel p-6 rounded-2xl"><h4 class="text-sm font-bold text-slate-700 mb-4">เพิ่มสถานที่ใหม่</h4><form id="addLocForm" class="flex gap-3"><input type="text" id="newLoc" placeholder="ชื่อสถานที่" required class="ios-input text-sm flex-1"><button type="submit" class="bg-teal-600 text-white text-sm rounded-xl hover:bg-teal-700 px-6 py-2 font-bold shadow-md ios-btn">เพิ่ม</button></form></div>
+                    <ul id="locList" class="glass-panel rounded-2xl divide-y divide-slate-100 overflow-hidden"></ul>
+                </div>
+                <div id="tabVehicles" class="hidden"><div class="grid grid-cols-1 md:grid-cols-2 gap-5 pb-10" id="vehicleMaintGrid"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIG & STATE ---
+        Chart.register(ChartDataLabels);
+
+        const defaultVehicles = ['6ขร4335', '6ขร4329', '4ขก1785', '4ขก1737', '4ขก1810', '1ขถ1132'];
+        const defaultLocations = [
+            'โรงงานสุราบริษัท เฟื่องฟูอนันต์ จำกัด จังหวัดปราจีนบุรี', 'โรงงานสุราบริษัท อธิมาตร จำกัด จังหวัด บุรีรัมย์',
+            'โรงงานสุราบริษัท เอส.เอส.การสุรา จำกัด จังหวัด อุบลราชธานี', 'โรงงานสุราบริษัท แก่นขวัญ จำกัด จังหวัด ขอนแก่น',
+            'โรงงานสุราบริษัท สุราพิเศษทิพราช จำกัด จังหวัด กาญจนบุรี', 'โรงงานสุราบริษัท สุราบางยี่ขัน จำกัด จังหวัด ปทุมธานี',
+            'โรงงานสุราบริษัท สุรากระทิงแดง(1988) จำกัด จังหวัด สมุทรสาคร', 'โรงงานสุราบริษัท แสงโสม จำกัด จังหวัด กาญจนบุรี',
+            'สุรามอลต์วิสกี้บริษัท สุรากระทิงแดง (1988) จำกัด จังหวัด กำแพงเพชร', 'โรงงานสุราบริษัท นทีชัย จำกัด จังหวัด สุราษฎร์ธานี',
+            'สุราบริษัท หลักชัยค้าสุรา จำกัด จังหวัด ราชบุรี', 'โรงงานสุราบริษัท เทพอรุโณทัย จำกัด จังหวัด หนองคาย',
+            'โรงงานสุราบริษัท กาญจนสิงขร จำกัด จังหวัด กาญจนบุรี', 'โรงงานสุราบริษัท ยูไนเต็ดไวน์เนอรี่ แอนด์ดิสทิลเลอรี่ จำกัด จังหวัด นครปฐม',
+            'สุราบริษัท สีมาธุรกิจ จำกัด จังหวัด นครสวรรค์', 'สุราบริษัท ธนภักดี จำกัด จังหวัด เชียงใหม่', 'สุราบริษัท มงคลสมัย จำกัด จังหวัด อุตรดิตถ์'
+        ];
+        
+        const vehicleColors = {
+            '6ขร4335': 'car-sky', '4ขก1785': 'car-orange', '6ขร4329': 'car-green',
+            '4ขก1737': 'car-pink', '4ขก1810': 'car-gray', '1ขถ1132': 'car-yellow'
+        };
+
+        const pieColors = ['#f43f5e', '#3b82f6', '#10b981', '#f97316', '#a855f7', '#0d9488', '#6366f1', '#ec4899', '#eab308', '#64748b'];
+
+        let currentUser = null; let currentBookingId = null; let currentView = 'month'; 
+        let currentDate = new Date(); 
+        let filterPlate = ''; let filterRequester = ''; let filterStatus = ''; let filterMonthYear = '';
+        let hiddenVehicles = new Set(); 
+        let charts = {};
+        let tablePage = 1; const itemsPerPage = 10;
+        let isMobile = window.innerWidth < 768;
+
+        const defaultUsers = [
+            { id: 'u1', email: 'admin@thaibev.com', pass: 'admin321', name: 'Admin System', role: 'admin' },
+            { id: 'u2', email: 'user@thaibev.com', pass: 'user123', name: 'คุณสมชาย', role: 'user' },
+            { id: 'u3', email: 'wipa@thaibev.com', pass: 'user123', name: 'คุณวิภา', role: 'user' },
+            { id: 'u4', email: 'amnart@thaibev.com', pass: 'user123', name: 'คุณอำนาจ', role: 'user' }
+        ];
+
+        // --- MOBILE & HISTORY LOGIC ---
+        window.addEventListener('resize', () => { isMobile = window.innerWidth < 768; });
+
+        function openModalWithHistory(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+            history.pushState({ modal: modalId }, null, "");
+        }
+
+        function closeModalWithHistory(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+            if (modalId === 'bookingModal' || modalId === 'viewModal') currentBookingId = null;
+            if (modalId === 'adminPanelModal') resetUserForm();
+            if (history.state && history.state.modal === modalId) {
+                history.back();
+            }
+        }
+
+        window.onpopstate = function(event) {
+            const modals = ['bookingModal', 'availabilityModal', 'fleetModal', 'viewModal', 'dayDetailsModal', 'adminPanelModal'];
+            let closedAny = false;
+            if (!event.state) {
+                 modals.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (!el.classList.contains('hidden')) {
+                        el.classList.add('hidden');
+                        if (id === 'bookingModal' || id === 'viewModal') currentBookingId = null;
+                        if (id === 'adminPanelModal') resetUserForm();
+                        closedAny = true;
+                    }
+                });
+            }
+        };
+
+        // --- CLOUD SYNC & STATE ---
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyRvlOaJ7uZKAu-NA9FjpJ6DcZoiqbGNhkBVG5lEF1clVoX_0S-0pFbvuVCLN5V0NVbYA/exec';
+
+let dbState = {
+    bookings: [],
+    users: defaultUsers,
+    stats: {},
+    vehicles: defaultVehicles,
+    locations: defaultLocations
+};
+
+async function loadDataFromCloud() {
+    try {
+        Swal.fire({ title: 'กำลังเชื่อมต่อฐานข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const response = await fetch(WEB_APP_URL);
+        const data = await response.json();
+        
+        if (data.bookings && data.bookings.length > 0) dbState.bookings = data.bookings;
+        if (data.users && data.users.length > 0) dbState.users = data.users;
+        if (Object.keys(data.stats || {}).length > 0) dbState.stats = data.stats;
+        if (data.vehicles && data.vehicles.length > 0) dbState.vehicles = data.vehicles;
+        if (data.locations && data.locations.length > 0) dbState.locations = data.locations;
+        
+        Swal.close();
+    } catch (err) {
+        console.error(err);
+        Swal.fire('Warning', 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้ ระบบกำลังทำงานในโหมด Offline (Local)', 'warning');
+    }
+}
+
+function syncToCloud(tableName, payloadData) {
+    fetch(WEB_APP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+        body: JSON.stringify({ table: tableName, data: payloadData })
+    }).catch(err => console.error('Sync error:', err));
+}
+
+// --- GETTERS & SETTERS (Cloud Mode) ---
+function getVehicleList() { return dbState.vehicles; }
+function saveVehicleList(list) { dbState.vehicles = list; syncToCloud('vehicles', list); }
+
+function getLocationList() { return dbState.locations; }
+function saveLocationList(list) { dbState.locations = list; syncToCloud('locations', list); }
+
+function getVehicleStats() { return dbState.stats; }
+function saveVehicleStats(data) { dbState.stats = data; syncToCloud('stats', data); }
+
+function getUsers() { return dbState.users; }
+function saveUsers(users) { dbState.users = users; syncToCloud('users', users); }
+
+function getBookings() { return dbState.bookings; }
+function saveBookings(data) { dbState.bookings = data; syncToCloud('bookings', data); }
+        function hardReset() { if(confirm("ล้างค่าทั้งหมด?")) { localStorage.clear(); location.reload(); } }
+
+        // --- AUTH ---
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.toLowerCase();
+            const pass = document.getElementById('loginPass').value;
+            const user = getUsers().find(u => u.email.toLowerCase() === email && u.pass === pass);
+            if (user) {
+                currentUser = user;
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('appContainer').classList.remove('hidden');
+                document.getElementById('userDisplay').innerText = `${user.name} (${user.role})`;
+                
+                if (user.role === 'admin') { 
+                    document.getElementById('adminSettingsBtn').classList.remove('hidden'); 
+                    document.getElementById('adminTripZone').classList.remove('hidden'); 
+                    document.getElementById('fleetBtn').classList.remove('hidden');
+                    updatePendingBadge();
+                } else { 
+                    document.getElementById('adminSettingsBtn').classList.add('hidden'); 
+                    document.getElementById('adminTripZone').classList.add('hidden'); 
+                    document.getElementById('fleetBtn').classList.add('hidden');
+                }
+                
+                // --- เพิ่มคำสั่งโหลดข้อมูลตรงนี้ ---
+                await loadDataFromCloud();
+                
+                initApp();
+            } else Swal.fire({title:'Error', text:'Invalid Credentials', icon:'error', confirmButtonColor: '#0d9488'});
+        });
+        function logout() { location.reload(); }
+
+        // --- INIT ---
+        function initApp() { 
+            renderSidebar(); 
+            renderFormOptions(); 
+            renderCalendar(); 
+            getVehicleStats();
+            document.querySelectorAll('.ios-input').forEach(el => {
+                if(el.type === 'date') el.addEventListener('change', updateAvailableVehicles);
+            }); 
+        }
+
+        function openSidebar() {
+            document.getElementById('sidebar').classList.remove('-translate-x-full');
+            document.getElementById('sidebarOverlay').classList.remove('hidden');
+        }
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+            document.getElementById('sidebarOverlay').classList.add('hidden');
+        }
+
+        // --- NAV ---
+        function goToToday() { currentDate = new Date(); renderCalendar(); }
+        function setView(view) {
+    currentView = view;
+    // ปรับ style ของปุ่มทั้งหมดให้เป็นแบบ Inactive (ตัวหนังสือขาวบางๆ)
+    document.querySelectorAll('.view-btn').forEach(btn => btn.className = 'view-btn px-4 py-1.5 text-xs rounded-lg font-bold transition flex items-center gap-2 text-teal-100 hover:bg-white/10');
+    
+    // ปรับ style ปุ่ม Active (สีขาว ตัวหนังสือ Teal)
+    const active = document.getElementById('btn' + view.charAt(0).toUpperCase() + view.slice(1));
+    if(active) active.className = 'view-btn px-4 py-1.5 text-xs rounded-lg font-bold transition flex items-center gap-2 bg-white text-teal-700 shadow-md';
+    
+    renderCalendar();
+}
+        function changePeriod(delta) { 
+            if (currentView === 'month' || currentView === 'table') currentDate.setMonth(currentDate.getMonth() + delta);
+            else currentDate.setDate(currentDate.getDate() + delta);
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const container = document.getElementById('calendarContainer');
+            try {
+                if(currentUser && currentUser.role === 'admin') updatePendingBadge();
+                if (currentView === 'month') renderMonthView(container);
+                else if (currentView === 'table') renderTableView(container);
+            } catch (e) { console.error(e); container.innerHTML = '<div class="text-red-500 p-10">Error rendering. Try Hard Reset.</div>'; }
+        }
+        
+        function updatePendingBadge() {
+            const count = getBookings().filter(b => b.status === 'pending').length;
+            const badge = document.getElementById('pendingBadge');
+            if(count > 0) { badge.classList.remove('hidden'); badge.innerText = count; }
+            else badge.classList.add('hidden');
+        }
+
+        function formatDateLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        function formatDateThaiShortRange(startStr, endStr) {
+            const s = new Date(startStr);
+            const e = new Date(endStr);
+            const sText = s.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            const eText = e.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+            if (startStr === endStr) return sText;
+            return `${sText} - ${eText}`;
+        }
+
+        // --- MONTH VIEW ---
+        function renderMonthView(container) {
+            container.innerHTML = ''; 
+            document.getElementById('currentDateDisplay').innerText = currentDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+            container.className = "flex-1 overflow-hidden relative flex flex-col";
+
+            const minWidthClass = 'min-w-[1000px]'; 
+
+            const header = document.createElement('div'); 
+            header.className = `grid grid-cols-7 text-center py-3 text-slate-500 font-bold text-xs border-b border-white/40 bg-white/30 backdrop-blur-sm ${minWidthClass} md:min-w-0`;
+            ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'].forEach(d => header.innerHTML += `<div>${d}</div>`);
+            
+            const headerWrap = document.createElement('div'); 
+            headerWrap.className = 'overflow-x-auto scrollbar-hide shrink-0'; 
+            headerWrap.appendChild(header);
+            container.appendChild(headerWrap);
+
+            const body = document.createElement('div'); 
+            body.className = `grid grid-cols-7 auto-rows-fr h-full overflow-auto ${minWidthClass} md:min-w-0`;
+            
+            const year = currentDate.getFullYear(); 
+            const month = currentDate.getMonth();
+            const firstDay = new Date(year, month, 1).getDay(); 
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            for (let i = 0; i < firstDay; i++) body.innerHTML += `<div class="border-b border-r border-slate-200/50 p-1 bg-white/10 backdrop-blur-[2px]"></div>`;
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                const cell = document.createElement('div');
+                cell.className = 'border-b border-r border-slate-200/50 p-1.5 relative min-h-[100px] hover:bg-white/40 transition overflow-hidden flex flex-col cursor-pointer active:scale-[0.99] group';
+                cell.onclick = () => openDayDetailsModal(dateStr);
+                
+                cell.innerHTML = `<span class="text-xs font-bold text-slate-700 block mb-1 sticky top-0 z-10 w-6 h-6 flex items-center justify-center rounded-full group-hover:bg-teal-500 group-hover:text-white transition-colors">${day}</span>`;
+                const ec = document.createElement('div'); ec.className = 'flex flex-col gap-1 overflow-hidden';
+                
+                renderMaintenanceAlerts(ec, dateStr);
+                
+                const dayBookings = getFilteredBookings(dateStr).filter(b => !hiddenVehicles.has(b.licensePlate));
+                const maxDisplay = isMobile ? 8 : 10; 
+
+                dayBookings.forEach((b, index) => {
+                    if (index < maxDisplay) {
+                        const el = document.createElement('div');
+                        let bgClass = getVehicleColor(b.licensePlate);
+                        let borderClass = 'border-white/30';
+                        if(b.status === 'pending') { bgClass = 'bg-slate-300 text-slate-500'; borderClass = 'border-slate-400/30'; }
+                        
+                        el.className = `${bgClass} text-[10px] px-2 py-1 rounded-md cursor-pointer hover:brightness-105 relative shadow-sm border ${borderClass} transition-transform hover:-translate-y-0.5`;
+                        
+                        const displayText = `${b.requester} (${b.location})`;
+                        el.innerHTML = `<div class="font-bold truncate drop-shadow-sm">${displayText}</div>`; 
+                        
+                        el.onclick = (e) => { 
+                            e.stopPropagation(); 
+                            const isOwner = currentUser && (currentUser.id === b.userId || currentUser.name === b.requester);
+                            if (currentUser && (currentUser.role === 'admin' || isOwner)) {
+                                openBookingModal(b.id);
+                            } else {
+                                openViewModal(b.id); 
+                            }
+                        }; 
+                        ec.appendChild(el);
+                    }
+                });
+                if (dayBookings.length > maxDisplay) {
+                    const moreBtn = document.createElement('div');
+                    moreBtn.className = "bg-slate-200/80 text-slate-500 text-[9px] px-1 py-0.5 rounded text-center font-bold backdrop-blur-sm";
+                    moreBtn.innerHTML = `+ ${dayBookings.length - maxDisplay}`; ec.appendChild(moreBtn);
+                }
+                cell.appendChild(ec); body.appendChild(cell);
+            }
+            const bodyWrap = document.createElement('div'); bodyWrap.className = 'flex-1 overflow-auto'; bodyWrap.appendChild(body);
+            container.appendChild(bodyWrap);
+            
+            bodyWrap.addEventListener('scroll', () => headerWrap.scrollLeft = bodyWrap.scrollLeft);
+        }
+
+        // --- DAY DETAILS ---
+        function openDayDetailsModal(dateStr) {
+            const bookings = getFilteredBookings(dateStr).filter(b => !hiddenVehicles.has(b.licensePlate));
+            const listContainer = document.getElementById('dayDetailsList'); listContainer.innerHTML = '';
+            
+            const titleEl = document.getElementById('dayDetailsTitle');
+            titleEl.innerText = `รายละเอียด ${formatDateThaiShortRange(dateStr, dateStr)}`;
+            titleEl.setAttribute('data-date', dateStr);
+            
+            const dateObj = new Date(dateStr);
+
+            if (bookings.length > 0) {
+                const title = document.createElement('div');
+                title.className = "text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 mt-1"; title.innerText = "รถที่ถูกจองแล้ว";
+                listContainer.appendChild(title);
+
+                bookings.forEach(b => {
+                    const status = getUsageStatus(b);
+                    const isPending = b.status === 'pending';
+                    const vColor = isPending ? 'bg-slate-300' : getVehicleColor(b.licensePlate);
+                    
+                    const isAuthorized = currentUser && (currentUser.role === 'admin' || currentUser.id === b.userId || currentUser.name === b.requester);
+                    
+                    const item = document.createElement('div');
+                    const cursorClass = isAuthorized ? 'cursor-pointer active:scale-95' : 'cursor-not-allowed opacity-80';
+                    item.className = `glass-panel rounded-2xl p-4 mb-3 transition flex items-start gap-4 relative hover:shadow-md ${cursorClass}`;
+                    
+                    if (isAuthorized) {
+                        item.onclick = () => { openBookingModal(b.id); };
+                    }
+                    
+                    let statusPillClass = 'status-pill-booked';
+                    if (status.label === 'อยู่ระหว่างใช้งาน') statusPillClass = 'status-pill-active';
+                    
+                    const actionText = isAuthorized ? '<span class="text-[10px] text-teal-600 font-bold bg-teal-50 px-2 py-0.5 rounded-md">Edit</span>' : '<span class="text-[10px] text-slate-400"><i class="fas fa-lock"></i></span>';
+
+                    item.innerHTML = `
+                        <div class="flex-1 space-y-2">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-1 rounded-lg text-[11px] font-bold ${vColor} shadow-sm border border-black/5 min-w-[60px] text-center">${b.licensePlate}</span>
+                                <span class="text-sm font-bold text-slate-800">${b.requester}</span>
+                            </div>
+                            <div class="text-xs text-slate-500 flex items-start gap-1.5 pl-0.5">
+                                <i class="fas fa-map-marker-alt mt-0.5 text-slate-400"></i>
+                                <span class="leading-tight">${b.location}</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-2">
+                            <span class="status-badge ${status.class}">${status.label}</span>
+                            ${actionText}
+                        </div>
+                    `;
+                    listContainer.appendChild(item);
+                });
+            }
+
+            const allVehicles = getVehicleList().filter(v => !hiddenVehicles.has(v));
+            const bookedPlates = bookings.map(b => b.licensePlate);
+            const availableVehicles = allVehicles.filter(v => !bookedPlates.includes(v));
+
+            if (bookings.length > 0 && availableVehicles.length > 0) {
+                const sep = document.createElement('div'); sep.className = "h-4 border-b border-dashed border-slate-300 mb-4"; listContainer.appendChild(sep);
+            }
+            
+            const avTitle = document.createElement('div');
+            avTitle.className = "text-xs font-bold text-green-700 uppercase tracking-wider mb-3 flex items-center gap-2"; 
+            avTitle.innerHTML = `<i class="fas fa-check-circle"></i> รถว่าง (แตะเพื่อจอง)`;
+            listContainer.appendChild(avTitle);
+
+            if(availableVehicles.length > 0) {
+                const grid = document.createElement('div');
+                grid.className = "grid grid-cols-2 gap-3"; 
+                availableVehicles.forEach(v => {
+                    const btn = document.createElement('div');
+                    const vColor = getVehicleColor(v);
+                    btn.className = "bg-white/60 hover:bg-white border border-white/60 rounded-xl p-3 shadow-sm hover:shadow-md active:scale-95 transition cursor-pointer flex items-center gap-3 backdrop-blur-sm";
+                    btn.onclick = () => {
+                        openBookingModal(null, dateStr, v); 
+                    };
+                    btn.innerHTML = `
+                        <div class="w-8 h-8 rounded-full ${vColor} shadow-inner flex items-center justify-center border border-black/5 shrink-0 text-[10px]">
+                            <i class="fas fa-car text-black/60"></i>
+                        </div>
+                        <span class="text-sm font-bold text-slate-700">${v}</span>
+                    `;
+                    grid.appendChild(btn);
+                });
+                listContainer.appendChild(grid);
+            } else {
+                const empty = document.createElement('div');
+                empty.className = "text-xs text-red-500 italic bg-red-50/50 p-3 rounded-xl border border-red-100 text-center"; empty.innerText = "ไม่มีรถว่างในวันนี้";
+                listContainer.appendChild(empty);
+            }
+
+            openModalWithHistory('dayDetailsModal');
+        }
+
+        // --- TABLE VIEW ---
+        function renderTableView(container) {
+            document.getElementById('currentDateDisplay').innerText = currentDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+            container.className = "flex-1 overflow-hidden flex flex-col p-4 overflow-y-auto";
+
+            let tbody = document.getElementById('bookingTableBody');
+            
+            if (!tbody) {
+                container.innerHTML = '';
+                const filterDiv = document.createElement('div');
+                filterDiv.className = "glass-panel p-4 rounded-2xl mb-4 space-y-3";
+                filterDiv.innerHTML = `
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div><input type="text" id="searchInput" placeholder="🔍 ค้นหา..." class="ios-input w-full text-xs"></div>
+                        <div><select id="filterPlate" class="ios-input w-full text-xs h-[38px]"><option value="">ทะเบียน (ทั้งหมด)</option></select></div>
+                        <div><select id="filterRequester" class="ios-input w-full text-xs h-[38px]"><option value="">ผู้จอง (ทั้งหมด)</option></select></div>
+                        <div><select id="filterStatus" class="ios-input w-full text-xs h-[38px]"><option value="">สถานะ (ทั้งหมด)</option><option value="pending">รออนุมัติ</option><option value="active">Active</option><option value="done">จบงาน</option></select></div>
+                    </div>
+                    <div class="flex justify-between items-center">
+                         <input type="month" id="filterMonthYear" class="ios-input w-auto text-xs py-1.5 h-[34px]">
+                         <button onclick="clearTableFilters()" class="text-xs bg-red-100 text-red-600 hover:bg-red-200 px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 shadow-sm"><i class="fas fa-times"></i> ล้างตัวกรอง</button>
+                    </div>
+                `;
+                container.appendChild(filterDiv);
+
+                const selPlate = filterDiv.querySelector('#filterPlate'); const selReq = filterDiv.querySelector('#filterRequester');
+                const selStat = filterDiv.querySelector('#filterStatus'); const selMonth = filterDiv.querySelector('#filterMonthYear');
+                const txtSearch = filterDiv.querySelector('#searchInput');
+
+                getVehicleList().forEach(v => selPlate.appendChild(new Option(v, v)));
+                getUsers().forEach(u => selReq.appendChild(new Option(u.name, u.name)));
+                selPlate.value = filterPlate; selReq.value = filterRequester; selStat.value = filterStatus; selMonth.value = filterMonthYear;
+                if(txtSearch) txtSearch.value = document.getElementById('searchInput') ? document.getElementById('searchInput').value : '';
+
+                txtSearch.addEventListener('input', (e) => { tablePage = 1; renderTableView(container); });
+                const handleFilterChange = (e, type) => { if(type === 'plate') filterPlate = e.target.value; if(type === 'req') filterRequester = e.target.value; if(type === 'stat') filterStatus = e.target.value; if(type === 'month') filterMonthYear = e.target.value; tablePage = 1; renderTableView(container); };
+                selPlate.addEventListener('change', (e) => handleFilterChange(e, 'plate'));
+                selReq.addEventListener('change', (e) => handleFilterChange(e, 'req'));
+                selStat.addEventListener('change', (e) => handleFilterChange(e, 'stat'));
+                selMonth.addEventListener('change', (e) => handleFilterChange(e, 'month'));
+
+                const tableWrap = document.createElement('div');
+                tableWrap.className = 'glass-panel overflow-x-auto mb-4 rounded-2xl flex-1';
+                tableWrap.innerHTML = `<table class="w-full text-sm text-left border-collapse min-w-[800px]"><thead class="bg-slate-50/50 text-slate-500 sticky top-0 backdrop-blur-sm z-10 text-xs uppercase font-bold tracking-wider"><tr><th class="p-4 border-b border-slate-200/50">สถานะ</th><th class="p-4 border-b border-slate-200/50">วันที่</th><th class="p-4 border-b border-slate-200/50">ทะเบียนรถ</th><th class="p-4 border-b border-slate-200/50">ผู้จอง</th><th class="p-4 border-b border-slate-200/50">สถานที่</th><th class="p-4 border-b border-slate-200/50 w-[180px]">Maintenance</th><th class="p-4 border-b border-slate-200/50 text-center">Action</th></tr></thead><tbody id="bookingTableBody" class="divide-y divide-slate-100/50"></tbody></table>`;
+                container.appendChild(tableWrap);
+                
+                const pagDiv = document.createElement('div'); pagDiv.id = "paginationControls"; pagDiv.className = "flex justify-between items-center bg-white/40 p-3 rounded-xl border border-white/50 sticky bottom-0 z-20 mt-auto backdrop-blur-sm shadow-sm"; container.appendChild(pagDiv);
+            }
+
+            const searchVal = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
+            let start, end;
+            if (filterMonthYear) {
+                const y = parseInt(filterMonthYear.split('-')[0]); const m = parseInt(filterMonthYear.split('-')[1]) - 1;
+                start = new Date(y, m, 1).toISOString().split('T')[0]; end = new Date(y, m + 1, 0).toISOString().split('T')[0];
+            } else {
+                start = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().split('T')[0];
+                end = new Date(currentDate.getFullYear(), currentDate.getMonth()+1, 0).toISOString().split('T')[0];
+            }
+
+            let bookings = getBookings().filter(b => (b.startDate <= end && b.endDate >= start));
+            if(filterPlate) bookings = bookings.filter(b => b.licensePlate === filterPlate);
+            if(filterRequester) bookings = bookings.filter(b => b.requester === filterRequester);
+            bookings = bookings.filter(b => !hiddenVehicles.has(b.licensePlate));
+            if(filterStatus) bookings = bookings.filter(b => { const s = getUsageStatus(b); if(filterStatus==='pending') return b.status==='pending'; if(filterStatus==='active') return s.label==='อยู่ระหว่างใช้งาน'; if(filterStatus==='done') return s.label==='เสร็จสิ้น'; return true; });
+            if(searchVal) bookings = bookings.filter(b => (b.location && b.location.toLowerCase().includes(searchVal)) || (b.note && b.note.toLowerCase().includes(searchVal)) || (b.requester && b.requester.toLowerCase().includes(searchVal)));
+
+            bookings.sort((a,b) => a.startDate.localeCompare(b.startDate));
+            const totalItems = bookings.length; const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+            if (tablePage > totalPages) tablePage = totalPages; if (tablePage < 1) tablePage = 1;
+            const paginatedBookings = bookings.slice((tablePage - 1) * itemsPerPage, tablePage * itemsPerPage);
+
+            tbody = document.getElementById('bookingTableBody'); tbody.innerHTML = '';
+            if(paginatedBookings.length === 0) tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-slate-400 font-medium italic">ไม่พบข้อมูลตามเงื่อนไข</td></tr>';
+            else {
+                paginatedBookings.forEach(b => {
+                    const canEdit = (b.userId === currentUser.id || currentUser.role === 'admin');
+                    const btns = canEdit ? `<button onclick="openBookingModal(${b.id})" class="text-teal-600 bg-teal-50 hover:bg-teal-100 p-2 rounded-lg transition mr-1"><i class="fas fa-edit"></i></button><button onclick="deleteBookingFromTable(${b.id})" class="text-red-500 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition"><i class="fas fa-trash"></i></button>` : '<span class="text-slate-300">-</span>';
+                    const status = getUsageStatus(b); const isPending = b.status === 'pending'; const vColor = isPending ? 'bg-slate-300' : getVehicleColor(b.licensePlate);
+                    const tr = document.createElement('tr'); tr.className = "hover:bg-white/40 transition";
+                    tr.innerHTML = `<td class="p-3"><span class="status-badge ${status.class}">${status.label}</span></td><td class="p-3 text-slate-600 whitespace-nowrap font-medium">${formatDateThaiShortRange(b.startDate, b.endDate)}</td><td class="p-3"><span class="px-2 py-1 rounded text-xs font-bold ${vColor} shadow-sm border border-black/5">${b.licensePlate}</span></td><td class="p-3 font-bold text-slate-700">${b.requester}</td><td class="p-3 truncate max-w-xs text-slate-600" title="${b.location}">${b.location}</td><td class="p-3 align-top min-w-[150px]">${getCountdownDisplay(b.licensePlate)}</td><td class="p-3 text-center whitespace-nowrap">${btns}</td>`;
+                    tbody.appendChild(tr);
+                });
+            }
+            document.getElementById('paginationControls').innerHTML = `<span class="text-xs text-slate-600 font-bold ml-2">หน้า ${tablePage} / ${totalPages} (${totalItems} รายการ)</span><div class="flex gap-2 mr-1"><button onclick="changeTablePage(-1)" class="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs hover:bg-slate-50 disabled:opacity-50 font-bold shadow-sm transition" ${tablePage===1?'disabled':''}><i class="fas fa-chevron-left"></i></button><button onclick="changeTablePage(1)" class="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs hover:bg-slate-50 disabled:opacity-50 font-bold shadow-sm transition" ${tablePage===totalPages?'disabled':''}><i class="fas fa-chevron-right"></i></button></div>`;
+        }
+        function changeTablePage(delta) { tablePage += delta; renderTableView(document.getElementById('calendarContainer')); }
+
+        function clearTableFilters() {
+            filterPlate = ''; filterRequester = ''; filterStatus = ''; filterMonthYear = '';
+            const searchInput = document.getElementById('searchInput');
+            if(searchInput) searchInput.value = '';
+            tablePage = 1;
+            renderTableView(document.getElementById('calendarContainer'));
+        }
+
+        // --- AVAILABILITY CHECKER ---
+        function openAvailabilityModal() {
+            const today = new Date();
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            document.getElementById('avDate').value = `${y}-${m}`;
+            openModalWithHistory('availabilityModal');
+            renderAvailabilityGrid();
+        }
+
+        function renderAvailabilityGrid() {
+            const container = document.getElementById('avGridContainer'); 
+            container.innerHTML = '';
+            const dateVal = document.getElementById('avDate').value; 
+            if(!dateVal) return;
+            
+            const year = parseInt(dateVal.split('-')[0]); 
+            const month = parseInt(dateVal.split('-')[1]) - 1;
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const vehicles = getVehicleList().filter(v => !hiddenVehicles.has(v));
+            const bookings = getBookings().filter(b => b.status !== 'rejected'); 
+
+            const table = document.createElement('div'); 
+            table.className = "bg-white rounded-xl overflow-hidden relative shadow-sm border border-slate-200"; 
+            table.style.display = 'grid'; 
+            table.style.gridTemplateColumns = `100px repeat(${daysInMonth}, minmax(36px, 1fr))`; 
+            
+            table.style.minWidth = `${100 + (daysInMonth * 36)}px`; 
+
+            let headerHTML = `<div class="bg-slate-100 p-2 border-b border-r border-slate-200 text-xs font-bold text-slate-600 sticky top-0 left-0 z-30 flex items-center justify-center shadow-md">ทะเบียน</div>`;
+            
+            for(let i=1; i<=daysInMonth; i++) { 
+                headerHTML += `<div class="bg-slate-50 border-b border-r border-slate-200/50 text-[10px] font-bold text-slate-500 text-center py-2 sticky top-0 z-20 shadow-sm">${i}</div>`; 
+            }
+            
+            let bodyHTML = '';
+            vehicles.forEach(v => {
+                let isTotallyFree = true;
+                const vColor = getVehicleColor(v);
+                bodyHTML += `<div class="${vColor} p-2 border-b border-r border-white/20 text-[10px] md:text-xs font-bold sticky left-0 z-10 flex items-center justify-between shadow-sm overflow-hidden whitespace-nowrap">${v}<span id="badge-${v}" class="hidden ml-1 w-2 h-2 bg-white/70 rounded-full border border-black/10 shadow-sm"></span></div>`;
+                
+                for(let d=1; d<=daysInMonth; d++) {
+                    const currentStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    const booking = bookings.find(b => { return b.licensePlate === v && (currentStr >= b.startDate && currentStr <= b.endDate); });
+                    
+                    if(booking) { 
+                        isTotallyFree = false; 
+                        const isPending = booking.status === 'pending'; 
+                        const cls = isPending ? 'av-pending' : 'av-busy'; 
+                        const title = `${booking.requester} (${booking.location})`; 
+                        bodyHTML += `<div class="av-grid-cell ${cls}" title="${title}" onclick="openViewModal(${booking.id})">${isPending ? '?' : '<i class="fas fa-times"></i>'}</div>`; 
+                    } 
+                    else { bodyHTML += `<div class="av-grid-cell av-free"></div>`; }
+                }
+                if(isTotallyFree) bodyHTML = bodyHTML.replace(`id="badge-${v}" class="hidden`, `class="inline-block`);
+            });
+            
+            table.innerHTML = headerHTML + bodyHTML; 
+            container.appendChild(table);
+        }
+
+        // --- FLEET & BACKUP & MAINTENANCE & ACTIONS ---
+        function openFleetModal() { const d = new Date(); const y = d.getFullYear(); document.getElementById('fleetStart').value = `${y}-01`; document.getElementById('fleetEnd').value = `${y}-12`; openModalWithHistory('fleetModal'); renderFleetCharts(); }
+        function renderFleetCharts() {
+            const startStr = document.getElementById('fleetStart').value; const endStr = document.getElementById('fleetEnd').value;
+            if(!startStr || !endStr) return;
+            const startDt = new Date(startStr + "-01"); const endDt = new Date(endStr + "-01"); const endDtFull = new Date(endDt.getFullYear(), endDt.getMonth() + 1, 0);
+            const startYMD = startDt.toISOString().split('T')[0]; const endYMD = endDtFull.toISOString().split('T')[0];
+            const bookings = getBookings(); const vehicles = getVehicleList();
+            const dataDist = {}; const dataCost = {}; const dataUsers = {}; const dataLocs = {};
+            vehicles.forEach(v => { dataDist[v] = 0; dataCost[v] = 0; });
+            bookings.forEach(b => {
+                if (b.startDate <= endYMD && b.endDate >= startYMD && b.status !== 'pending') {
+                    if(vehicles.includes(b.licensePlate)) { if(b.totalDist) dataDist[b.licensePlate] += parseFloat(b.totalDist); if(b.slipRef) dataCost[b.licensePlate] += parseFloat(b.slipRef); }
+                    if(b.requester) dataUsers[b.requester] = (dataUsers[b.requester] || 0) + 1;
+                    if(b.location) dataLocs[b.location] = (dataLocs[b.location] || 0) + 1;
+                }
+            });
+            ['dist', 'cost', 'user', 'loc'].forEach(k => { if(charts[k]) charts[k].destroy(); });
+            const commonOptions = { responsive: true, maintainAspectRatio: false, plugins: { datalabels: { color: 'white', font: { weight: 'bold', size: 10 }, formatter: (value) => value.toLocaleString() } } };
+            const pieOptions = { responsive: true, maintainAspectRatio: false, plugins: { datalabels: { color: 'white', font: { weight: 'bold' }, formatter: (value, ctx) => { let sum = 0; ctx.chart.data.datasets[0].data.map(data => sum += data); return value > 0 ? value : ''; } } } };
+
+            charts['dist'] = new Chart(document.getElementById('distChart').getContext('2d'), { type: 'bar', data: { labels: vehicles, datasets: [{ label: 'ระยะทาง (กม.)', data: vehicles.map(v=>dataDist[v]), backgroundColor: '#3b82f6', borderRadius: 6 }] }, options: commonOptions });
+            charts['cost'] = new Chart(document.getElementById('costChart').getContext('2d'), { type: 'bar', data: { labels: vehicles, datasets: [{ label: 'ค่าใช้จ่าย (บาท)', data: vehicles.map(v=>dataCost[v]), backgroundColor: '#ef4444', borderRadius: 6 }] }, options: commonOptions });
+            charts['user'] = new Chart(document.getElementById('userChart').getContext('2d'), { type: 'pie', data: { labels: Object.keys(dataUsers), datasets: [{ data: Object.values(dataUsers), backgroundColor: pieColors.slice(0, Object.keys(dataUsers).length), borderWidth: 2, borderColor: 'white' }] }, options: pieOptions });
+            charts['loc'] = new Chart(document.getElementById('locChart').getContext('2d'), { type: 'doughnut', data: { labels: Object.keys(dataLocs), datasets: [{ data: Object.values(dataLocs), backgroundColor: pieColors.slice(0, Object.keys(dataLocs).length), borderWidth: 2, borderColor: 'white' }] }, options: pieOptions });
+        }
+
+        function backupData() { const blob = new Blob([JSON.stringify({ bookings: localStorage.getItem('vb_bookings'), users: localStorage.getItem('vb_users'), stats: localStorage.getItem('vb_vehicle_stats'), vehicles: localStorage.getItem('vb_vehicle_list'), locations: localStorage.getItem('vb_locations') })], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'vehicle_system_backup.json'; a.click(); }
+        function triggerImport() { Swal.fire({ title: 'นำเข้าข้อมูล', text: "ข้อมูลปัจจุบันจะถูกทับ!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#f97316' }).then((r) => { if(r.isConfirmed) document.getElementById('importFile').click(); }); }
+        function handleImport(input) { 
+            const file = input.files[0]; 
+            if(!file) return; 
+            const reader = new FileReader(); 
+            reader.onload = (e) => { 
+                try { 
+                    Swal.fire({ title: 'กำลังนำเข้าและอัปโหลดขึ้น Cloud...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const data = JSON.parse(e.target.result); 
+                    
+                    if(data.bookings) saveBookings(JSON.parse(data.bookings)); 
+                    if(data.users) saveUsers(JSON.parse(data.users)); 
+                    if(data.stats) saveVehicleStats(JSON.parse(data.stats)); 
+                    if(data.vehicles) saveVehicleList(JSON.parse(data.vehicles)); 
+                    if(data.locations) saveLocationList(JSON.parse(data.locations)); 
+                    
+                    // หน่วงเวลาเล็กน้อยเพื่อให้ Background Fetch ยิงคำสั่ง POST ได้สำเร็จ
+                    setTimeout(() => {
+                        initApp(); 
+                        Swal.fire('สำเร็จ', 'นำเข้าข้อมูลสู่ Google Sheets เรียบร้อย', 'success'); 
+                    }, 1500); 
+                } catch(err) { 
+                    Swal.fire('Error', 'ไฟล์ไม่ถูกต้อง', 'error'); 
+                } 
+            }; 
+            reader.readAsText(file); 
+        }
+
+        function getUsageStatus(b) { 
+    // กรณีรออนุมัติ ใช้ class .status-pending
+    if(b.status === 'pending') return { label: 'รออนุมัติ', class: 'status-pending' }; 
+    
+    // กรณีจบงานแล้ว (มีเลขไมล์จบและ Ref) ใช้ class .status-ok (สีเขียว)
+    if(b.startMile !== undefined && b.endMile !== undefined && b.endMile !== '' && b.endMile > 0 && b.slipRef) return { label: 'เสร็จสิ้น', class: 'status-ok' }; 
+    
+    // กรณีอยู่ระหว่างใช้งาน (Active)
+    const now = new Date(); 
+    const start = new Date(`${b.startDate}T00:00`); 
+    const end = new Date(`${b.endDate}T23:59`); 
+    if(now >= start && now <= end) return { label: 'อยู่ระหว่างใช้งาน', class: 'status-active' }; // เปลี่ยนจาก status-warn เป็น status-active (สีฟ้า)
+    
+    // กรณีจองไว้ล่วงหน้า ใช้ class .status-warn (สีเหลือง)
+    return { label: 'จองแล้ว', class: 'status-warn' }; 
+}
+        function getFilteredBookings(dateStr) { return getBookings().filter(b => dateStr >= b.startDate && dateStr <= b.endDate); }
+        function updateAvailableVehicles() { const startD = document.getElementById('startDate').value; const endD = document.getElementById('endDate').value; const select = document.getElementById('licensePlate'); const msg = document.getElementById('availabilityMsg'); if (startD && endD) { select.disabled = false; msg.classList.remove('hidden'); const reqStart = new Date(`${startD}T00:00`); const reqEnd = new Date(`${endD}T23:59`); const occupied = new Set(); getBookings().forEach(b => { if(document.getElementById('bookingId').value == b.id) return; if(b.status === 'rejected') return; const bStart = new Date(`${b.startDate}T00:00`); const bEnd = new Date(`${b.endDate}T23:59`); if (reqStart <= bEnd && reqEnd >= bStart) occupied.add(b.licensePlate); }); select.innerHTML = '<option value="">-- เลือกรถที่ว่าง --</option>'; getVehicleList().forEach(v => { if(!occupied.has(v)) select.appendChild(new Option(`${v} (ว่าง)`, v)); }); } else { select.disabled = true; select.innerHTML = '<option value="">-- ระบุวันที่ก่อน --</option>'; msg.classList.add('hidden'); } }
+        function toggleCustomLoc(el) { document.getElementById('customLocation').classList.toggle('hidden', el.value !== 'other'); }
+        function renderMaintenanceAlerts(container, dateStr) { getVehicleList().forEach(v => { if(hiddenVehicles.has(v)) return; const issues = checkVehicleHealth(v); const batDue = getBatteryDueDate(v); if(batDue === dateStr) { const el = document.createElement('div'); el.className = 'bg-red-500 text-white text-[9px] px-1 py-0.5 rounded flex items-center gap-1 mb-1 cursor-pointer'; el.title = 'เปลี่ยนแบตเตอรี่'; el.innerHTML = `<i class="fas fa-car-battery"></i> ${v}`; el.onclick = (e) => { e.stopPropagation(); Swal.fire('Maintenance', `รถ ${v} ถึงกำหนดเปลี่ยนแบตเตอรี่`, 'info'); }; container.appendChild(el); } if(dateStr === formatDateLocal(new Date()) && issues.length > 0) { const el = document.createElement('div'); el.className = 'bg-amber-500 text-white text-[9px] px-1 py-0.5 rounded flex items-center gap-1 mb-1 cursor-pointer'; el.innerHTML = `<i class="fas fa-wrench"></i> ${v}`; el.onclick = (e) => { e.stopPropagation(); Swal.fire({ title: `Maintenance: ${v}`, html: issues.map(i=>`<p class="text-red-600">${i.msg}</p>`).join(''), icon: 'warning' }); }; container.appendChild(el); } }); }
+        function checkVehicleHealth(p) { const s = getVehicleStats()[p]; if(!s) return []; const i = []; const srvDist = s.currentMile - s.lastServiceMile; if(srvDist >= 10000) i.push({msg:`ครบกำหนดเช็คระยะ (เกินกำหนด ${srvDist - 10000} กม.)`}); const tireLimit = 50000; const tires = s.tires; const map = {fr:'หน้าขวา', fl:'หน้าซ้าย', rr:'หลังขวา', rl:'หลังซ้าย'}; ['fr','fl','rr','rl'].forEach(pos => { const dist = s.currentMile - tires[pos]; if(dist >= tireLimit) i.push({msg:`ยาง${map[pos]} ครบกำหนด (เกินกำหนด ${dist - tireLimit} กม.)`}); }); return i; }
+        function getBatteryDueDate(p) { const s = getVehicleStats()[p]; if(!s?.lastBatteryDate) return null; const d = new Date(s.lastBatteryDate); d.setFullYear(d.getFullYear()+2); return formatDateLocal(d); }
+        function getCountdownDisplay(plate) { const stats = getVehicleStats()[plate]; if(!stats) return '-'; let html = ''; const today = new Date(); html += '<div class="space-y-1">'; html += '<div class="flex gap-1">'; if(stats.lastBatteryDate) { const due = new Date(stats.lastBatteryDate); due.setFullYear(due.getFullYear() + 2); const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24)); const cls = diff < 0 ? 'status-danger' : (diff < 30 ? 'status-warn' : 'status-ok'); html += `<div><span class="status-badge ${cls} mr-1 text-[9px]">🔋 ${diff} วัน</span></div>`; } const srvLeft = 10000 - (stats.currentMile - stats.lastServiceMile); const srvCls = srvLeft <= 0 ? 'status-danger' : 'status-ok'; html += `<div><span class="status-badge ${srvCls} text-[9px]">🔧 ${srvLeft.toLocaleString()} กม.</span></div>`; html += '</div>'; html += '<div class="grid grid-cols-2 gap-x-2 gap-y-1">'; const map = {fr:'FR', fl:'FL', rr:'RR', rl:'RL'}; ['fr','fl','rr','rl'].forEach(pos => { const left = 50000 - (stats.currentMile - stats.tires[pos]); const cls = left <= 0 ? 'status-danger' : 'status-ok'; html += `<div class="text-[9px]"><span class="status-badge ${cls} scale-90 origin-left whitespace-nowrap">🛞 ${map[pos]} ${left.toLocaleString()}</span></div>`; }); html += '</div></div>'; return html; }
+        
+        function renderSidebar() {
+            const container = document.getElementById('vehicleFilterList'); container.innerHTML = '';
+            const list = getVehicleList();
+            list.forEach((v, index) => {
+                const div = document.createElement('div'); div.className = 'flex items-center gap-3 p-2.5 hover:bg-white/50 rounded-xl group active:scale-95 transition cursor-pointer border border-transparent hover:border-white/30';
+                const isChecked = !hiddenVehicles.has(v);
+                div.innerHTML = `<div class="w-5 h-5 rounded-full flex items-center justify-center border ${isChecked ? 'bg-teal-500 border-teal-600' : 'bg-white border-slate-300'} transition-colors" onclick="toggleVehicleFilter('${v}')">${isChecked ? '<i class="fas fa-check text-white text-xs"></i>' : ''}</div><div class="w-3 h-3 rounded-full ${getVehicleColor(v)} shadow-sm border border-black/5"></div><label class="text-sm font-bold text-slate-700 flex-1 truncate cursor-pointer" onclick="toggleVehicleFilter('${v}', true)">${v}</label>${currentUser && currentUser.role === 'admin' ? `<div class="flex items-center gap-2 md:hidden md:group-hover:flex"><button onclick="moveVehicle('${v}', -1)" class="text-slate-400 hover:text-slate-600 ${index===0?'invisible':''}"><i class="fas fa-arrow-up text-xs"></i></button><button onclick="moveVehicle('${v}', 1)" class="text-slate-400 hover:text-slate-600 ${index===list.length-1?'invisible':''}"><i class="fas fa-arrow-down text-xs"></i></button><button onclick="editVehicle('${v}')" class="text-blue-400 hover:text-blue-600"><i class="fas fa-pen text-xs"></i></button><button onclick="deleteVehicle('${v}')" class="text-red-400 hover:text-red-600"><i class="fas fa-trash text-xs"></i></button></div>` : ''}`;
+                container.appendChild(div);
+            });
+        }
+        function toggleVehicleFilter(plate, viaLabel=false) { if(viaLabel) { if(hiddenVehicles.has(plate)) hiddenVehicles.delete(plate); else hiddenVehicles.add(plate); } else { if(hiddenVehicles.has(plate)) hiddenVehicles.delete(plate); else hiddenVehicles.add(plate); } renderSidebar(); renderCalendar(); }
+        function resetVehicleFilter() { hiddenVehicles.clear(); renderSidebar(); renderCalendar(); }
+        function moveVehicle(plate, dir) { let list = getVehicleList(); const idx = list.indexOf(plate); if(idx < 0) return; const targetIdx = idx + dir; if(targetIdx >= 0 && targetIdx < list.length) { [list[idx], list[targetIdx]] = [list[targetIdx], list[idx]]; saveVehicleList(list); renderSidebar(); renderCalendar(); } }
+        async function editVehicle(oldPlate) { const { value: newPlate } = await Swal.fire({ title: 'แก้ไขทะเบียนรถ', input: 'text', inputValue: oldPlate, showCancelButton: true, confirmButtonColor: '#0d9488', inputValidator: (value) => { if (!value) return 'กรุณาระบุชื่อ!'; if (value !== oldPlate && getVehicleList().includes(value)) return 'ชื่อนี้มีอยู่แล้ว!'; } }); if (newPlate && newPlate !== oldPlate) { let list = getVehicleList(); list[list.indexOf(oldPlate)] = newPlate; saveVehicleList(list); let stats = getVehicleStats(); if(stats[oldPlate]) { stats[newPlate] = stats[oldPlate]; delete stats[oldPlate]; saveVehicleStats(stats); } let bookings = getBookings(); let updatedCount = 0; bookings = bookings.map(b => { if(b.licensePlate === oldPlate) { updatedCount++; return { ...b, licensePlate: newPlate }; } return b; }); saveBookings(bookings); Swal.fire('Success', `เปลี่ยนชื่อสำเร็จ (${updatedCount} รายการที่อัพเดท)`, 'success'); renderSidebar(); renderCalendar(); } }
+        function deleteVehicle(plate) { Swal.fire({ title: `ลบรถ ${plate}?`, text: "ประวัติการจองของรถคันนี้จะไม่ถูกลบ แต่จะไม่แสดงในปฏิทิน", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบเลย' }).then((result) => { if (result.isConfirmed) { let list = getVehicleList().filter(v => v !== plate); saveVehicleList(list); let stats = getVehicleStats(); delete stats[plate]; saveVehicleStats(stats); renderSidebar(); renderCalendar(); Swal.fire('Deleted!', 'ลบเรียบร้อย', 'success'); } }); }
+
+        function renderFormOptions() { 
+            const reqList = document.getElementById('requesterList'); reqList.innerHTML = '';
+            getUsers().forEach(u => reqList.appendChild(new Option(u.name)));
+            const loc = document.getElementById('location'); loc.innerHTML = '<option value="">-- เลือกสถานที่ --</option>';
+            getLocationList().forEach(l => loc.appendChild(new Option(l, l)));
+            loc.appendChild(new Option("อื่นๆ (ระบุเอง)", "other"));
+        }
+
+        // --- CRUD BOOKING ---
+        function openBookingModal(editId = null, preSelectDate = null, preSelectPlate = null) {
+            openModalWithHistory('bookingModal'); renderFormOptions();
+            if (editId) {
+                // EDIT MODE
+                const b = getBookings().find(b => b.id == editId);
+                document.getElementById('bookingModalTitle').innerText = 'แก้ไขการจอง';
+                document.getElementById('bookingId').value = b.id;
+                document.getElementById('startDate').value = b.startDate; document.getElementById('endDate').value = b.endDate;
+                updateAvailableVehicles();
+                const plateSel = document.getElementById('licensePlate');
+                if(!Array.from(plateSel.options).some(o=>o.value===b.licensePlate)) { plateSel.appendChild(new Option(`${b.licensePlate} (เดิม)`, b.licensePlate)); }
+                plateSel.value = b.licensePlate;
+                document.getElementById('requester').value = b.requester; document.getElementById('note').value = b.note || ''; 
+                const locSel = document.getElementById('location');
+                if(Array.from(locSel.options).some(o=>o.value===b.location)) { locSel.value = b.location; document.getElementById('customLocation').classList.add('hidden'); } 
+                else { locSel.value = 'other'; document.getElementById('customLocation').value = b.location; document.getElementById('customLocation').classList.remove('hidden'); }
+                const stats = getVehicleStats()[b.licensePlate];
+                if (b.startMile && b.startMile > 0) { document.getElementById('startMile').value = b.startMile; } 
+                else if (currentUser && currentUser.role === 'admin' && stats) { document.getElementById('startMile').value = stats.currentMile; } 
+                else { document.getElementById('startMile').value = ''; }
+                document.getElementById('endMile').value = b.endMile || '';
+                calcDistance(); document.getElementById('slipRef').value = b.slipRef || '';
+            } else {
+                // NEW MODE
+                document.getElementById('bookingModalTitle').innerText = 'จองรถใหม่'; document.getElementById('bookingForm').reset();
+                document.getElementById('bookingId').value = ''; 
+                if(preSelectDate) { document.getElementById('startDate').value = preSelectDate; document.getElementById('endDate').value = preSelectDate; } 
+                else if(!document.getElementById('startDate').value) { document.getElementById('startDate').value = formatDateLocal(new Date()); document.getElementById('endDate').value = formatDateLocal(new Date()); }
+                updateAvailableVehicles();
+                if(preSelectPlate) { const plateSel = document.getElementById('licensePlate'); if(!Array.from(plateSel.options).some(o=>o.value===preSelectPlate)) { plateSel.appendChild(new Option(`${preSelectPlate} (ว่าง)`, preSelectPlate)); } plateSel.value = preSelectPlate; }
+                if(currentUser) document.getElementById('requester').value = currentUser.name;
+            }
+        }
+        
+        document.getElementById('bookingForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const plate = document.getElementById('licensePlate').value; if (!plate) return Swal.fire({title:'Error', text:'กรุณาเลือกรถ', icon:'error', confirmButtonColor:'#0d9488'});
+            const issues = checkVehicleHealth(plate);
+            const locVal = document.getElementById('location').value; const finalLoc = locVal === 'other' ? document.getElementById('customLocation').value : locVal;
+            const id = document.getElementById('bookingId').value;
+            let newStatus = 'pending'; if (currentUser.role === 'admin') newStatus = 'approved';
+            if (id) { const oldB = getBookings().find(b => b.id == id); if (oldB) { if (currentUser.role === 'admin') newStatus = 'approved'; else newStatus = oldB.status || 'approved'; } }
+            
+            const save = () => {
+                const startM = parseInt(document.getElementById('startMile').value)||0; const endM = parseInt(document.getElementById('endMile').value)||0;
+                const data = { id: id ? parseInt(id) : Date.now(), userId: id ? getBookings().find(b=>b.id==id).userId : currentUser.id, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value, startTime: '06:00', endTime: '19:00', licensePlate: plate, requester: document.getElementById('requester').value, location: finalLoc, note: document.getElementById('note').value, startMile: startM, endMile: endM, totalDist: (endM > startM) ? (endM - startM) : 0, slipRef: document.getElementById('slipRef').value, status: newStatus };
+                if (currentUser.role === 'admin' && endM > 0) { const s = getVehicleStats(); if(s[plate]) { s[plate].currentMile = endM; saveVehicleStats(s); } }
+                let bookings = getBookings(); bookings = id ? bookings.map(b => b.id == id ? data : b) : [...bookings, data]; saveBookings(bookings); 
+                
+                closeModalWithHistory('bookingModal'); 
+                if(currentBookingId) closeModalWithHistory('viewModal'); 
+                renderCalendar();
+
+                const dayDetailsModal = document.getElementById('dayDetailsModal');
+                if (!dayDetailsModal.classList.contains('hidden')) {
+                    const dateStr = document.getElementById('dayDetailsTitle').getAttribute('data-date');
+                    if (dateStr) openDayDetailsModal(dateStr); 
+                }
+
+                if(newStatus === 'pending') Swal.fire({title:'บันทึกสำเร็จ', text:'การจองของคุณต้องรอการอนุมัติจาก Admin', icon:'info', confirmButtonColor:'#0d9488'}); else Swal.fire({title:'Saved', text:'บันทึกข้อมูลสำเร็จ', icon:'success', confirmButtonColor:'#0d9488'});
+            };
+            const stats = getVehicleStats()[plate]; let warn = false;
+            if(stats) { const maxTire = Math.max(stats.tires.fr, stats.tires.fl, stats.tires.rr, stats.tires.rl); if(stats.currentMile - maxTire >= 50000) warn = true; if(stats.currentMile - stats.lastServiceMile >= 10000) warn = true; }
+            if(warn || issues.length > 0) Swal.fire({ title: 'Maintenance Warning', text: 'รถคันนี้เกินกำหนดซ่อมบำรุงแล้ว ยืนยันการจอง?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ยืนยัน', confirmButtonColor:'#f97316' }).then(r=>{if(r.isConfirmed) save();}); else save();
+        });
+        function calcDistance() { const s = document.getElementById('startMile').value; const e = document.getElementById('endMile').value; if(s && e) document.getElementById('totalDist').value = e - s; }
+
+        // --- VIEW MODAL ---
+        function openViewModal(id) { 
+            currentBookingId = id; 
+            const b = getBookings().find(b => b.id == id); 
+            
+            const header = document.getElementById('viewHeader');
+            const vColorClass = getVehicleColor(b.licensePlate); 
+            header.className = `px-6 py-4 flex justify-between items-center relative overflow-hidden ${vColorClass}`;
+            
+            document.getElementById('viewLicense').innerText = b.licensePlate; 
+            
+            const status = getUsageStatus(b); 
+            let badgeHtml = '';
+            if (status.label === 'จองแล้ว') {
+                badgeHtml = `<div class="bg-yellow-100 text-yellow-700 px-6 py-1.5 rounded-full text-sm font-bold shadow-inner border border-yellow-200">จองแล้ว</div>`;
+            } else if (status.label === 'อยู่ระหว่างใช้งาน') {
+                badgeHtml = `<div class="bg-blue-100 text-blue-700 px-6 py-1.5 rounded-full text-sm font-bold shadow-inner border border-blue-200 animate-pulse">อยู่ระหว่างใช้งาน</div>`;
+            } else {
+                badgeHtml = `<div class="bg-slate-200 text-slate-600 px-6 py-1.5 rounded-full text-sm font-bold shadow-inner border border-slate-300">${status.label}</div>`;
+            }
+            document.getElementById('viewStatusBadge').innerHTML = badgeHtml;
+
+            document.getElementById('viewRequester').innerText = b.requester; 
+            document.getElementById('viewDate').innerText = formatDateThaiShortRange(b.startDate, b.endDate);
+            document.getElementById('viewLocation').innerText = b.location; 
+            document.getElementById('viewNote').innerText = b.note || '-'; 
+            
+            if(b.totalDist > 0 || b.slipRef) { 
+                document.getElementById('viewTripLog').classList.remove('hidden'); 
+                document.getElementById('viewDistance').innerText = `${b.totalDist || 0} km`; 
+            } else {
+                document.getElementById('viewTripLog').classList.add('hidden'); 
+            }
+            
+            const acts = document.getElementById('viewActions'); 
+            const approveBtn = document.getElementById('approveBtn'); 
+            if(b.userId === currentUser.id || currentUser.role === 'admin') { 
+                acts.classList.remove('hidden'); acts.classList.add('flex'); 
+                if(currentUser.role === 'admin' && b.status === 'pending') { 
+                    approveBtn.classList.remove('hidden'); 
+                } else { 
+                    approveBtn.classList.add('hidden'); 
+                } 
+            } else { 
+                acts.classList.add('hidden'); acts.classList.remove('flex'); 
+            } 
+            
+            openModalWithHistory('viewModal'); 
+        }
+
+        function approveCurrentBooking() { Swal.fire({ title: 'ยืนยันอนุมัติ?', text: "เมื่ออนุมัติแล้ว การจองจะแสดงในปฏิทินตามปกติ", icon: 'question', showCancelButton: true, confirmButtonText: 'อนุมัติ', confirmButtonColor: '#059669' }).then((result) => { if (result.isConfirmed) { let bookings = getBookings(); bookings = bookings.map(b => b.id == currentBookingId ? { ...b, status: 'approved' } : b); saveBookings(bookings); closeModalWithHistory('viewModal'); renderCalendar(); Swal.fire({title:'Approved', text:'อนุมัติเรียบร้อย', icon:'success', confirmButtonColor:'#059669'}); } }); }
+        function editCurrentBooking() { closeModalWithHistory('viewModal'); openBookingModal(currentBookingId); }
+        function deleteCurrentBooking() { Swal.fire({title:'ยืนยันการลบ?',icon:'warning',showCancelButton:true,confirmButtonColor:'#d33'}).then(r=>{if(r.isConfirmed){saveBookings(getBookings().filter(b=>b.id!=currentBookingId));closeModalWithHistory('viewModal');renderCalendar();}}); }
+        function deleteBookingFromTable(id) { Swal.fire({title:'ยืนยันการลบ?',icon:'warning',showCancelButton:true,confirmButtonColor:'#d33'}).then(r=>{if(r.isConfirmed){saveBookings(getBookings().filter(b=>b.id!=id));renderCalendar();}}); }
+
+        // --- ADMIN PANELS ---
+        function openAdminPanel() { openModalWithHistory('adminPanelModal'); switchAdminTab('users'); }
+        function switchAdminTab(tab) { document.getElementById('tabUsers').classList.toggle('hidden', tab !== 'users'); document.getElementById('tabLocations').classList.toggle('hidden', tab !== 'locations'); document.getElementById('tabVehicles').classList.toggle('hidden', tab !== 'vehicles'); if(tab === 'users') { renderUserTable(); document.getElementById('tabUserBtn').classList.add('border-b-2', 'border-teal-600', 'text-teal-700', 'bg-teal-50/50'); document.getElementById('tabLocBtn').classList.remove('border-b-2', 'border-teal-600', 'text-teal-700', 'bg-teal-50/50'); document.getElementById('tabVehicleBtn').classList.remove('border-b-2', 'border-teal-600', 'text-teal-700', 'bg-teal-50/50'); } else if(tab === 'locations') { renderLocationList(); document.getElementById('tabLocBtn').classList.add('border-b-2', 'border-teal-600', 'text-teal-700', 'bg-teal-50/50'); document.getElementById('tabUserBtn').classList.remove('border-b-2', 'border-teal-600', 'text-teal-700', 'bg-teal-50/50'); document.getElementById('tabVehicleBtn').classList.remove('border-b-2', 'border-teal-600', 'text-teal-700', 'bg-teal-50/50'); } else { renderVehicleMaintenance(); document.getElementById('tabVehicleBtn').classList.add('border-b-2', 'border-teal-600', 'text-teal-700', 'bg-teal-50/50'); document.getElementById('tabUserBtn').classList.remove('border-b-2', 'border-teal-600', 'text-teal-700', 'bg-teal-50/50'); document.getElementById('tabLocBtn').classList.remove('border-b-2', 'border-teal-600', 'text-teal-700', 'bg-teal-50/50'); } }
+        function renderLocationList() { const list = document.getElementById('locList'); list.innerHTML = ''; getLocationList().forEach((l, idx) => { list.innerHTML += `<li class="p-4 flex justify-between items-center text-sm group hover:bg-slate-50 transition"><span>${l}</span> <div class="flex gap-2"><button onclick="editLoc('${l}')" class="text-blue-500 hover:text-blue-700 font-bold text-xs p-2 bg-blue-50 rounded-lg"><i class="fas fa-edit"></i></button><button onclick="delLoc('${l}')" class="text-red-500 hover:text-red-700 font-bold text-xs p-2 bg-red-50 rounded-lg"><i class="fas fa-trash"></i></button></div></li>`; }); }
+        document.getElementById('addLocForm').addEventListener('submit', (e) => { e.preventDefault(); const val = document.getElementById('newLoc').value; const list = getLocationList(); if(list.includes(val)) return Swal.fire('Error','ซ้ำ','error'); list.push(val); saveLocationList(list); renderLocationList(); e.target.reset(); });
+        async function editLoc(oldName) { const { value: newName } = await Swal.fire({ title: 'แก้ไขชื่อสถานที่', input: 'text', inputValue: oldName, showCancelButton: true, confirmButtonColor:'#0d9488', inputValidator: (value) => { if (!value) return 'ห้ามเว้นว่าง!' } }); if (newName && newName !== oldName) { let list = getLocationList(); list[list.indexOf(oldName)] = newName; saveLocationList(list); let bookings = getBookings().map(b => b.location === oldName ? { ...b, location: newName } : b); saveBookings(bookings); renderLocationList(); renderCalendar(); Swal.fire('Success', 'แก้ไขเรียบร้อย', 'success'); } }
+        function delLoc(val) { Swal.fire({title:'ลบสถานที่นี้?', text:'จะไม่ส่งผลต่อประวัติการจองเก่า', icon:'warning', showCancelButton:true, confirmButtonColor:'#d33'}).then(r => { if(r.isConfirmed) { saveLocationList(getLocationList().filter(l => l !== val)); renderLocationList(); } }); }
+        
+        function renderUserTable() { const tbody = document.getElementById('userTableBody'); tbody.innerHTML = ''; getUsers().forEach(u => { const isSystem = (u.id === 'u1'); const del = isSystem ? '<span class="text-slate-300">-</span>' : `<button onclick="deleteUser('${u.id}')" class="text-red-500 bg-red-50 hover:bg-red-100 rounded-lg font-bold text-xs p-2 transition"><i class="fas fa-trash"></i></button>`; const edit = `<button onclick="editUser('${u.id}')" class="text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg font-bold text-xs mr-2 p-2 transition"><i class="fas fa-edit"></i></button>`; tbody.innerHTML += `<tr><td class="p-4 whitespace-nowrap font-bold text-slate-700">${u.name}</td><td class="p-4 text-slate-500 whitespace-nowrap">${u.email}</td><td class="p-4"><span class="px-2 py-1 rounded text-xs font-bold ${u.role==='admin'?'bg-slate-800 text-white':'bg-slate-200 text-slate-600'}">${u.role}</span></td><td class="p-4 text-right whitespace-nowrap">${edit}${del}</td></tr>`; }); }
+        function resetUserForm() { document.getElementById('addUserForm').reset(); document.getElementById('editUserId').value = ''; document.getElementById('userFormTitle').innerText = "เพิ่มผู้ใช้งานใหม่"; document.getElementById('saveUserBtn').innerText = "บันทึก"; document.getElementById('cancelUserBtn').classList.add('hidden'); document.getElementById('newPass').placeholder = "รหัสผ่าน"; document.getElementById('newPass').required = true; }
+        function editUser(id) { const u = getUsers().find(x => x.id === id); if(!u) return; document.getElementById('editUserId').value = u.id; document.getElementById('newEmail').value = u.email; document.getElementById('newName').value = u.name; document.getElementById('newRole').value = u.role; document.getElementById('userFormTitle').innerText = "แก้ไขผู้ใช้งาน"; document.getElementById('saveUserBtn').innerText = "บันทึก"; document.getElementById('cancelUserBtn').classList.remove('hidden'); const passField = document.getElementById('newPass'); passField.value = ''; passField.placeholder = "เว้นว่างไว้หากไม่เปลี่ยน"; passField.required = false; }
+
+        document.getElementById('addUserForm').addEventListener('submit', (e) => { 
+            e.preventDefault(); 
+            let users = getUsers(); 
+            const id = document.getElementById('editUserId').value; 
+            const email = document.getElementById('newEmail').value; 
+            const name = document.getElementById('newName').value; 
+            const pass = document.getElementById('newPass').value; 
+            const role = document.getElementById('newRole').value; 
+            if(id) { const idx = users.findIndex(u => u.id === id); if(idx !== -1) { users[idx].email = email; users[idx].name = name; users[idx].role = role; if(pass) users[idx].pass = pass; saveUsers(users); Swal.fire({title:'Success', text:'แก้ไขข้อมูลสำเร็จ', icon:'success', confirmButtonColor:'#0d9488'}); } } 
+            else { if(users.some(u=>u.email===email)) return Swal.fire('Error','Email exists','error'); users.push({id:'u'+Date.now(), email, name, pass, role}); saveUsers(users); Swal.fire({title:'Success', text:'Added', icon:'success', confirmButtonColor:'#0d9488'}); } 
+            renderUserTable(); updateRequesterDropdown(); resetUserForm(); 
+        });
+
+        function updateRequesterDropdown() { renderFormOptions(); } 
+        function deleteUser(id) { Swal.fire({title:'Confirm?',showCancelButton:true,confirmButtonColor:'#d33'}).then(r=>{if(r.isConfirmed){saveUsers(getUsers().filter(u=>u.id!==id));renderUserTable();}}); }
+        function renderVehicleMaintenance() { const container = document.getElementById('vehicleMaintGrid'); container.innerHTML = ''; const stats = getVehicleStats(); getVehicleList().forEach(v => { const s = stats[v] || { tires: {fr:0,fl:0,rr:0,rl:0} }; const card = document.createElement('div'); card.className = "glass-panel p-5 rounded-2xl"; card.innerHTML = `<div class="flex items-center gap-2 mb-4 border-b border-slate-200 pb-3"><div class="w-6 h-6 rounded-full ${getVehicleColor(v)} shadow-sm border border-black/10"></div><h4 class="font-bold text-slate-700 text-lg">${v}</h4></div><form onsubmit="updateVehicleStat(event, '${v}')" class="space-y-4 text-sm"><div class="grid grid-cols-2 gap-3"><div class="space-y-1"><label class="text-xs font-bold text-slate-500">ไมล์ปัจจุบัน</label><input type="number" name="curr" value="${s.currentMile}" class="ios-input w-full text-right bg-white/50"></div><div class="space-y-1"><label class="text-xs font-bold text-slate-500">เปลี่ยนแบตล่าสุด</label><input type="date" name="bat" value="${s.lastBatteryDate}" class="ios-input w-full bg-white/50"></div></div><div class="space-y-1"><label class="text-xs font-bold text-slate-500">เช็คระยะล่าสุดที่ไมล์</label><input type="number" name="service" value="${s.lastServiceMile}" class="ios-input w-full text-right bg-white/50"></div><div class="bg-slate-50/50 p-3 rounded-xl border border-slate-200"><label class="font-bold block mb-2 text-xs text-slate-500 uppercase">เปลี่ยนยาง (ไมล์)</label><div class="grid grid-cols-2 gap-2"><div><label class="text-[9px] font-bold text-slate-400">FR</label><input type="number" name="tire_fr" value="${s.tires.fr}" class="ios-input w-full text-right text-xs p-1"></div><div><label class="text-[9px] font-bold text-slate-400">FL</label><input type="number" name="tire_fl" value="${s.tires.fl}" class="ios-input w-full text-right text-xs p-1"></div><div><label class="text-[9px] font-bold text-slate-400">RR</label><input type="number" name="tire_rr" value="${s.tires.rr}" class="ios-input w-full text-right text-xs p-1"></div><div><label class="text-[9px] font-bold text-slate-400">RL</label><input type="number" name="tire_rl" value="${s.tires.rl}" class="ios-input w-full text-right text-xs p-1"></div></div></div><button type="submit" class="w-full mt-2 bg-slate-800 text-white py-2.5 rounded-xl shadow-lg hover:bg-slate-900 active:scale-95 transition font-bold">Update Stats</button></form>`; container.appendChild(card); }); const add = document.createElement('div'); add.className = "border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center cursor-pointer min-h-[200px] hover:border-teal-500 hover:text-teal-600 hover:bg-teal-50 transition text-slate-400 gap-2"; add.innerHTML = `<i class="fas fa-plus-circle text-4xl mb-2 opacity-50"></i><span class="font-bold">เพิ่มรถใหม่</span>`; add.onclick = addNewVehicle; container.appendChild(add); }
+        async function addNewVehicle() { const { value: plate } = await Swal.fire({ title: 'เพิ่มทะเบียนรถ', input: 'text', showCancelButton: true, confirmButtonColor: '#0d9488' }); if (plate) { const list = getVehicleList(); if(list.includes(plate)) return Swal.fire('Error', 'ซ้ำ', 'error'); list.push(plate); saveVehicleList(list); renderVehicleMaintenance(); renderSidebar(); Swal.fire('Success','','success'); } }
+        function updateVehicleStat(e, plate) { e.preventDefault(); const f = e.target; const stats = getVehicleStats(); stats[plate] = { currentMile: parseInt(f.elements['curr'].value)||0, lastBatteryDate: f.elements['bat'].value, lastServiceMile: parseInt(f.elements['service'].value)||0, tires: { fr:parseInt(f.elements['tire_fr'].value)||0, fl:parseInt(f.elements['tire_fl'].value)||0, rr:parseInt(f.elements['tire_rr'].value)||0, rl:parseInt(f.elements['tire_rl'].value)||0 } }; saveVehicleStats(stats); Swal.fire({title:'Updated',icon:'success', confirmButtonColor:'#0d9488'}); renderCalendar(); }
+    </script>
+</body>
+</html>
