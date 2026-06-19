@@ -245,10 +245,10 @@
             </div>
 
             <div class="p-4 mx-4 mb-6 rounded-2xl bg-white/40 border border-white/40 flex flex-col gap-2 shrink-0 backdrop-blur-sm">
-                <button onclick="backupData()" class="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-2 p-2 rounded hover:bg-white/50 transition"><i class="fas fa-cloud-download-alt"></i> Backup Data</button>
-                <button onclick="triggerImport()" class="text-xs font-semibold text-orange-600 hover:text-orange-800 flex items-center gap-2 p-2 rounded hover:bg-white/50 transition"><i class="fas fa-cloud-upload-alt"></i> Import Data</button>
+                <button id="backupBtn" onclick="backupData()" class="hidden text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-2 p-2 rounded hover:bg-white/50 transition"><i class="fas fa-cloud-download-alt"></i> Backup Data</button>
+                <button id="importBtn" onclick="triggerImport()" class="hidden text-xs font-semibold text-orange-600 hover:text-orange-800 flex items-center gap-2 p-2 rounded hover:bg-white/50 transition"><i class="fas fa-cloud-upload-alt"></i> Import Data</button>
                 <input type="file" id="importFile" class="hidden" accept=".json" onchange="handleImport(this)">
-                <div class="h-px bg-slate-200 my-1"></div>
+                <div id="actionDivider" class="hidden h-px bg-slate-200 my-1"></div>
                 <button onclick="logout()" class="text-xs font-bold text-red-500 hover:text-red-700 flex items-center gap-2 p-2 rounded hover:bg-red-50 transition w-full"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
             </div>
         </aside>
@@ -728,11 +728,17 @@ function saveBookings(data) { dbState.bookings = data; syncToCloud('bookings', d
                     document.getElementById('adminSettingsBtn').classList.remove('hidden'); 
                     document.getElementById('adminTripZone').classList.remove('hidden'); 
                     document.getElementById('fleetBtn').classList.remove('hidden');
+                    document.getElementById('backupBtn').classList.remove('hidden'); 
+                    document.getElementById('importBtn').classList.remove('hidden'); 
+                    document.getElementById('actionDivider').classList.remove('hidden'); 
                     updatePendingBadge();
                 } else { 
                     document.getElementById('adminSettingsBtn').classList.add('hidden'); 
                     document.getElementById('adminTripZone').classList.add('hidden'); 
                     document.getElementById('fleetBtn').classList.add('hidden');
+                    document.getElementById('backupBtn').classList.add('hidden'); 
+                    document.getElementById('importBtn').classList.add('hidden'); 
+                    document.getElementById('actionDivider').classList.add('hidden'); 
                 }
                 
                 initApp();
