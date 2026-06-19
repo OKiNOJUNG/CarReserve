@@ -602,11 +602,31 @@ let dbState = {
 
 async function loadDataFromCloud() {
     try {
-        Swal.fire({ title: 'กำลังเชื่อมต่อฐานข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-        const response = await fetch(WEB_APP_URL);
-        const data = await response.json();
+        Swal.fire({ title: 'กำลังอัปเดตข้อมูลจากฐานข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         
-        if (data.bookings) dbState.bookings = data.bookings;
+        // 1. ทะลวงแคช (Cache Busting) โดยการแนบ Time Stamp ไปกับ URL
+        // บังคับให้เบราว์เซอร์ไปดึงข้อมูลชุดใหม่ล่าสุดจาก Sheet เสมอ
+        const urlWithCacheBuster = WEB_APP_URL + (WEB_APP_URL.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+        const response = await fetch(urlWithCacheBuster, { redirect: 'follow' });
+        
+        const text = await response.text(); 
+        let data;
+        try { 
+            data = JSON.parse(text); 
+        } catch(e) { 
+            throw new Error("ไม่สามารถอ่านข้อมูล JSON ได้"); 
+        }
+
+        // 2. ดักจับและคลีนข้อมูลวันที่ (Date Normalization) 
+        // ตัด Timezone (T00:00:00.000Z) ที่ Google Sheet ชอบแถมมาทิ้ง ให้เหลือแค่ 10 ตัวแรก (YYYY-MM-DD)
+        if (data.bookings) {
+            dbState.bookings = data.bookings.map(b => ({
+                ...b,
+                startDate: b.startDate ? String(b.startDate).substring(0, 10) : '',
+                endDate: b.endDate ? String(b.endDate).substring(0, 10) : ''
+            }));
+        }
+        
         if (data.users) dbState.users = data.users;
         if (data.stats) dbState.stats = data.stats;
         if (data.vehicles) dbState.vehicles = data.vehicles;
@@ -614,8 +634,13 @@ async function loadDataFromCloud() {
         
         Swal.close();
     } catch (err) {
-        console.error(err);
-        Swal.fire('Warning', 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้ ระบบกำลังทำงานในโหมด Offline (Local)', 'warning');
+        console.error("Cloud Sync Error:", err);
+        await Swal.fire({ 
+            title: 'เชื่อมต่อ Cloud ไม่สำเร็จ', 
+            html: 'ระบบจะเข้าสู่โหมด Offline (Local) ชั่วคราว<br><br><small class="text-red-500">' + err.message + '</small>', 
+            icon: 'warning', 
+            confirmButtonColor: '#0d9488' 
+        });
     }
 }
 function syncToCloud(tableName, payloadData) {
@@ -626,14 +651,21 @@ function syncToCloud(tableName, payloadData) {
     }).catch(err => console.error('Sync error:', err));
 }
 
-// --- GETTERS & SETTERS (Cloud Mode - Complete Defensive Layer) ---
+// --- GETTERS & SETTERS (Cloud Mode - Complete) ---
+
 function getVehicleList() { 
-    // หากคลาวด์ส่งค่ากลับมาว่างเปล่า ให้ดึงค่าเริ่มต้นพยุงระบบทันที ป้องกันหน้าจอซ้ายว่าง
     return (dbState.vehicles && dbState.vehicles.length > 0) ? dbState.vehicles : defaultVehicles; 
 }
+function saveVehicleList(list) { dbState.vehicles = list; syncToCloud('vehicles', list); }
 
 function getLocationList() { 
     return (dbState.locations && dbState.locations.length > 0) ? dbState.locations : defaultLocations; 
+}
+function saveLocationList(list) { dbState.locations = list; syncToCloud('locations', list); }
+
+// --- ฟังก์ชันที่หายไป เติมกลับเข้ามาให้แล้วครับ ---
+function getVehicleColor(plate) { 
+    return vehicleColors[plate] || 'car-default'; 
 }
 
 function getVehicleStats() { 
@@ -641,15 +673,12 @@ function getVehicleStats() {
     let vehicles = getVehicleList();
     
     vehicles.forEach(v => {
-        // บังคับเตรียมโครงสร้าง Object หลักหากไม่มีข้อมูลในชีต
         if (!stats[v] || typeof stats[v] !== 'object') {
             stats[v] = { currentMile: 0, lastBatteryDate: formatDateLocal(new Date()), lastServiceMile: 0, tires: { fr:0,fl:0,rr:0,rl:0 } };
         }
-        // ตรวจสอบโครงสร้าง ยาง (tires) แบบละเอียดลึกเป็นพิเศษ ป้องกัน Error "Cannot read properties of undefined (reading 'fr')"
         if (!stats[v].tires || typeof stats[v].tires !== 'object') {
             stats[v].tires = { fr:0,fl:0,rr:0,rl:0 };
         }
-        // ตรวจสอบเช็คคุณสมบัติย่อยใน tires เผื่อมีบางค่าหลุดหายไปจากการเขียนชีต
         ['fr', 'fl', 'rr', 'rl'].forEach(pos => {
             if (stats[v].tires[pos] === undefined || stats[v].tires[pos] === null) {
                 stats[v].tires[pos] = 0;
@@ -658,20 +687,37 @@ function getVehicleStats() {
     });
     return stats; 
 }
-
-function saveVehicleList(list) { dbState.vehicles = list; syncToCloud('vehicles', list); }
-function saveLocationList(list) { dbState.locations = list; syncToCloud('locations', list); }
 function saveVehicleStats(data) { dbState.stats = data; syncToCloud('stats', data); }
+
+function getUsers() { 
+    return (dbState.users && dbState.users.length > 0) ? dbState.users : defaultUsers; 
+}
 function saveUsers(users) { dbState.users = users; syncToCloud('users', users); }
+
+function getBookings() { 
+    return dbState.bookings || []; 
+}
 function saveBookings(data) { dbState.bookings = data; syncToCloud('bookings', data); }
         function hardReset() { if(confirm("ล้างค่าทั้งหมด?")) { localStorage.clear(); location.reload(); } }
 
         // --- AUTH ---
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('loginEmail').value.toLowerCase();
-            const pass = document.getElementById('loginPass').value;
-            const user = getUsers().find(u => u.email.toLowerCase() === email && u.pass === pass);
+            
+            // ตัดช่องว่างหน้า-หลังออก เผื่อผู้ใช้เผลอพิมพ์เว้นวรรค
+            const email = document.getElementById('loginEmail').value.toLowerCase().trim();
+            const pass = document.getElementById('loginPass').value.trim();
+
+            // 1. ย้ายการโหลดข้อมูลจาก Cloud มาไว้ "ก่อน" ตรวจสอบ Login
+            // เพื่อให้เราได้ฐานข้อมูล Users ชุดล่าสุดจาก Google Sheet
+            await loadDataFromCloud();
+
+            // 2. ใช้ String() ครอบเพื่อบังคับให้สิ่งที่ดึงมาจาก Sheet เป็นข้อความเสมอ ป้องกันปัญหา 1234 !== "1234"
+            const user = getUsers().find(u => 
+                String(u.email).toLowerCase().trim() === email && 
+                String(u.pass).trim() === pass
+            );
+
             if (user) {
                 currentUser = user;
                 document.getElementById('loginScreen').classList.add('hidden');
@@ -689,11 +735,15 @@ function saveBookings(data) { dbState.bookings = data; syncToCloud('bookings', d
                     document.getElementById('fleetBtn').classList.add('hidden');
                 }
                 
-                // --- เพิ่มคำสั่งโหลดข้อมูลตรงนี้ ---
-                await loadDataFromCloud();
-                
                 initApp();
-            } else Swal.fire({title:'Error', text:'Invalid Credentials', icon:'error', confirmButtonColor: '#0d9488'});
+            } else {
+                Swal.fire({
+                    title: 'Error', 
+                    text: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง (โปรดตรวจสอบให้แน่ใจว่าไม่มีช่องว่างต่อท้าย)', 
+                    icon: 'error', 
+                    confirmButtonColor: '#0d9488'
+                });
+            }
         });
         function logout() { location.reload(); }
 
