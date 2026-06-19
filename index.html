@@ -590,7 +590,7 @@
         };
 
         // --- CLOUD SYNC & STATE ---
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyRvlOaJ7uZKAu-NA9FjpJ6DcZoiqbGNhkBVG5lEF1clVoX_0S-0pFbvuVCLN5V0NVbYA/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwxZxKUcs1albLV3oAvUID8-m7zT5m_QBM5JBNS64nVpsnvfr_zu1XxW2Xk3Wi0irzbpw/exec';
 
 let dbState = {
     bookings: [],
@@ -634,7 +634,15 @@ function saveVehicleList(list) { dbState.vehicles = list; syncToCloud('vehicles'
 function getLocationList() { return dbState.locations; }
 function saveLocationList(list) { dbState.locations = list; syncToCloud('locations', list); }
 
-function getVehicleStats() { return dbState.stats; }
+function getVehicleStats() { 
+    let stats = dbState.stats || {};
+    // สร้างค่าพื้นฐานให้รถทุกคันเสมอ เพื่อป้องกัน Error Cannot read properties
+    dbState.vehicles.forEach(v => {
+        if (!stats[v]) stats[v] = { currentMile: 0, lastBatteryDate: formatDateLocal(new Date()), lastServiceMile: 0, tires: { fr:0,fl:0,rr:0,rl:0 } };
+        if (!stats[v].tires) stats[v].tires = { fr:0,fl:0,rr:0,rl:0 };
+    });
+    return stats; 
+}
 function saveVehicleStats(data) { dbState.stats = data; syncToCloud('stats', data); }
 
 function getUsers() { return dbState.users; }
@@ -987,7 +995,7 @@ function saveBookings(data) { dbState.bookings = data; syncToCloud('bookings', d
             if(filterStatus) bookings = bookings.filter(b => { const s = getUsageStatus(b); if(filterStatus==='pending') return b.status==='pending'; if(filterStatus==='active') return s.label==='อยู่ระหว่างใช้งาน'; if(filterStatus==='done') return s.label==='เสร็จสิ้น'; return true; });
             if(searchVal) bookings = bookings.filter(b => (b.location && b.location.toLowerCase().includes(searchVal)) || (b.note && b.note.toLowerCase().includes(searchVal)) || (b.requester && b.requester.toLowerCase().includes(searchVal)));
 
-            bookings.sort((a,b) => a.startDate.localeCompare(b.startDate));
+            bookings.sort((a,b) => String(a.startDate || '').localeCompare(String(b.startDate || '')));
             const totalItems = bookings.length; const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
             if (tablePage > totalPages) tablePage = totalPages; if (tablePage < 1) tablePage = 1;
             const paginatedBookings = bookings.slice((tablePage - 1) * itemsPerPage, tablePage * itemsPerPage);
